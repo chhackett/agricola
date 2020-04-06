@@ -13,5 +13,10 @@ main = do
 playGame :: GameData -> Int
 playGame _ = 0
 
--- An action modifies the game state in some way
--- User 
+-- StartRound phase: draw a new round card
+-- Replenish: add new goods and animals
+-- Work: Place family member on unoccupied action space
+-- Return home: put workers back in the house
+-- Harvest: Field phase: remove 1 grain or vege from each sown field put them in personal supply
+-- Harvest: Feed: pay 2 food/worker. Offspring cost 1 food.
+-- Harvest: Breed: for each 2 animals fo the same type get one more animal of that type

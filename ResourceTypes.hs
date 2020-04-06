@@ -1,11 +1,18 @@
 module ResourceTypes where
 
-data Food = Grain Int | Veges Int deriving (Show, Read, Eq, Ord)
+data CropType = Grain | Veges deriving (Show, Read, Eq, Ord)
+type Crop = (CropType, Int)
+type Crops = [Crop]
 
-data Animals = Sheep Int | Boar Int | Cattle Int  deriving (Show, Read, Eq, Ord)
+data AnimalType = Sheep | Boar | Cattle deriving (Show, Read, Eq, Ord)
+type Animal = (AnimalType, Int)
+type Animals = [Animal]
 
-data Materials = Wood Int | Clay Int | Reed Int | Stone Int  deriving (Show, Read, Eq, Ord)
+data MaterialType = Wood | Clay | Reed | Stone deriving (Show, Read, Eq, Ord)
+type Material = (MaterialType, Int)
+type Materials = [Material]
 
 type Money = Int
+type Food = Int
 
-type Resources = (Food, Animals, Materials, Money)
+type Resources = [(Food, Money, Materials, Crops, Animals)]
