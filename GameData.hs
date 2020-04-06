@@ -14,29 +14,54 @@ import ResourceTypes
 --   Building materials: wood, clay, reed, stone
 --   Food: grain or veges
 
+data GameData = GameData { round :: Int
+                         , phase :: Phase
+                         , player :: Player }
+  deriving (Show, Read)
+
 data Action =
+  BuildRoomAndOrStables |
+  FamilyGrowthWithoutSpace |
+  AfterFamilyGrowthAlsoImprovement |
+  AfterRenovationAlsoFences |
+  AfterRenovationAlsoImprovement |
+  PlayOneOccupation |
+  MajorOrMinorImprovement |
+  TakeGrain |
+  TakeVege |
   TakeWood |
   TakeStone |
   TakeReed |
   Fishing |
   Fences |
-  Sow |
-  Plow |
+  SowAndOrBakeBread |
+  PlowAndOrSow |
   TakeSheep |
   TakeBoar |
   TakeCattle
-  deriving (Show)
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
+data MajorImprovements =
+  Fireplace1 |
+  Fireplace2 |
+  CookingHearth1 |
+  CookingHearth2 |
+  StoneOven |
+  ClayOven |
+  Pottery |
+  Joinery |
+  BasketmakersWorkshop |
+  Well
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
 data Phase =
   StartRound |
-  Actions |
+  Replenish |
+  Work |
+  ReturnHome |
   Harvest |
-  Slaughter |
+  Field |
   Feed |
   Breed |
   EndRound
-  deriving (Show)
-
-data GameData = GameData { round :: Int
-                         , phase :: Phase
-                         , player :: Player } deriving (Show)
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)

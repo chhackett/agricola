@@ -12,7 +12,7 @@ data Board = Board { houses :: [Coord]
                    , fields :: [(Coord, Food)]
                    , pastures :: [([Coord], Animals)]
                    , stables :: [(Coord, Animals)]
-                   } deriving (Show, Eq)
+                   } deriving (Show, Read, Eq)
 
 data Player = Player { board :: Board
                      , workers :: Int
@@ -22,4 +22,4 @@ data Player = Player { board :: Board
                      , materials :: [Materials]
                      , hand :: (OccupationTypes, ImprovementTypes)
                      , activeCards :: (OccupationTypes, ImprovementTypes)
-                     } deriving (Show)
+                     } deriving (Show, Read)
