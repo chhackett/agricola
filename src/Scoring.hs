@@ -1,6 +1,6 @@
 module Scoring where
 
-import PlayerData
+import Types.PlayerData
 
 calculateScore :: Player -> Int
 calculateScore p =

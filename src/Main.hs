@@ -1,5 +1,7 @@
+module Main where
+
 import CreateGame
-import GameData
+import Types.GameData
 import ExtendingHouse
 import System.Random
 

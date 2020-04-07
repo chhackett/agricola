@@ -1,9 +1,23 @@
-module CardData where
+module Types.CardData where
 
 -- Definition of occupation cards, improvement cards
 
+type MajorImprovementTypes = [MajorImprovementType]
 type ImprovementTypes = [ImprovementType]
 type OccupationTypes = [OccupationType]
+
+data MajorImprovementType =
+  Fireplace1 |
+  Fireplace2 |
+  CookingHearth1 |
+  CookingHearth2 |
+  StoneOven |
+  ClayOven |
+  Pottery |
+  Joinery |
+  BasketmakersWorkshop |
+  Well
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
 data ImprovementType =
   AnimalPen |

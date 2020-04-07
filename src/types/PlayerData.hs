@@ -1,7 +1,7 @@
-module PlayerData where
+module Types.PlayerData where
 
-import ResourceTypes
-import CardData
+import Types.ResourceTypes
+import Types.CardData
 
 -- Definition of player data types
 
@@ -22,7 +22,7 @@ type Coord = (Int, Int)
 data Board = Board { houses :: ([Coord], MaterialType)
                    , fields :: [(Coord, Crop)]
                    , pastures :: [([Coord], Animals)]
-                   , stables :: [(Coord, Animals)]
+                   , stables :: [(Coord, Animal)]
                    } deriving (Show, Read, Eq)
 
 data Player = Player { board :: Board

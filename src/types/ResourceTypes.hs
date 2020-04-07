@@ -1,4 +1,4 @@
-module ResourceTypes where
+module Types.ResourceTypes where
 
 data CropType = Grain | Veges deriving (Show, Read, Eq, Ord)
 type Crop = (CropType, Int)

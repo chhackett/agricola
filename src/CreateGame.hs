@@ -2,10 +2,10 @@ module CreateGame where
 
 import System.Random
 import BoundedEnum
-import GameData
-import PlayerData
-import CardData
-import ResourceTypes
+import Types.GameData
+import Types.PlayerData
+import Types.CardData
+import Types.ResourceTypes
 
 initGameData :: RandomGen g => g -> GameData
 initGameData g = let board = Board ([(0,0),(0,1)], Wood) [] [] []

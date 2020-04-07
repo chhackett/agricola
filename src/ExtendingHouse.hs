@@ -1,15 +1,26 @@
 module ExtendingHouse where
 
-import ResourceTypes
-import PlayerData
+import Types.ResourceTypes
+import Types.PlayerData
+import Types.GameData
 
-extendingHouseCost :: Board -> [Material]
-extendingHouseCost b = [(snd $ houses b, 5), (Reed, 2)]
+extendingHouseCost :: GameData -> Materials
+extendingHouseCost gd =
+  let b = board $ player gd
+      m = snd $ houses b in
+      [(m, 5), (Reed, 2)]
+
+renovateHouseCost :: GameData -> Materials
+renovateHouseCost gd =
+  let b = board $ player gd
+      m = snd $ houses b
+      n = length $ fst $ houses b in
+      [(m, n), (Reed, 1)]
 
 -- Compute where a player can put a new room based on his board configuration
 -- including current rooms, fenced in areas, fields, and stables
-allowedLocations :: Board -> [Coord]
-allowedLocations b =
+allowedSpaces :: Board -> [Coord]
+allowedSpaces b =
   let (hcs, _) = houses b
       usedCs = getAllUsedSpaces b in
   filter (`notElem` usedCs) $ concatMap getOrthogonalSpaces hcs
