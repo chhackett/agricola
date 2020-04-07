@@ -1,5 +1,6 @@
 import CreateGame
 import GameData
+import ExtendingHouse
 import System.Random
 
 main = do
