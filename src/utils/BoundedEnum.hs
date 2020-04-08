@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances, UndecidableInstances, ScopedTypeVariables #-}
 
-module BoundedEnum where
+module Utils.BoundedEnum where
 
 import System.Random
 

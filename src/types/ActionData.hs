@@ -30,31 +30,25 @@ data ActionCardType =
   AfterRenovationAlsoFences
   --deriving (Show, Read, Eq, Ord, Bounded)
 
-data Rounds =
-  Round1 |
-  Round2 |
-  Round3 |
-  Round4 |
-  Round5 |
-  Round6
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
+type Rounds = Int
+numRounds = 6
 
 type ActionCardRoundsMap = [(ActionCardType, Rounds)]
 
 actionCardToRound :: ActionCardRoundsMap
 actionCardToRound =
-  [ (SowAndOrBakeBread,         Round1),
-    (MajorOrMinorImprovement,   Round1),
-    (Fences,                    Round1),
-    (TakeSheep,                 Round1),
-    (AfterRenovationAlsoImprovement,    Round2),
-    (AfterFamilyGrowthAlsoImprovement,  Round2),
-    (TakeStone1,                Round2),
-    (TakeBoar,                  Round3),
-    (TakeVege,                  Round3),
-    (TakeCattle,                Round4),
-    (TakeStone2,                Round4),
-    (FamilyGrowthWithoutRoom,   Round5),
-    (PlowAndOrSow,              Round5),
-    (AfterRenovationAlsoFences, Round6)
+  [ (SowAndOrBakeBread,         0),
+    (MajorOrMinorImprovement,   0),
+    (Fences,                    0),
+    (TakeSheep,                 0),
+    (AfterRenovationAlsoImprovement,    1),
+    (AfterFamilyGrowthAlsoImprovement,  1),
+    (TakeStone1,                1),
+    (TakeBoar,                  2),
+    (TakeVege,                  2),
+    (TakeCattle,                3),
+    (TakeStone2,                3),
+    (FamilyGrowthWithoutRoom,   4),
+    (PlowAndOrSow,              4),
+    (AfterRenovationAlsoFences, 5)
   ]

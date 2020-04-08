@@ -1,11 +1,11 @@
-module ExtendingHouse where
+module Actions.BuildRoomAndStables where
 
 import Types.ResourceTypes
 import Types.PlayerData
 import Types.GameData
 
-extendingHouseCost :: GameData -> Materials
-extendingHouseCost gd =
+buildRoomCost :: GameData -> Materials
+buildRoomCost gd =
   let b = board $ player gd
       m = snd $ houses b in
       [(m, 5), (Reed, 2)]
@@ -38,3 +38,20 @@ getAllUsedSpaces b = let (hcs, _) = houses b
                          pcs = concatMap fst $ pastures b
                          scs = map fst (stables b) in
   hcs ++ fcs ++ pcs ++ scs
+
+addRoom :: Board -> Coord -> Board
+addRoom b c =
+  let (hcs, m) = houses b
+      fs = fields b
+      ps = pastures b
+      ss = stables b in
+  Board (c:hcs, m) fs ps ss
+
+renovateHouse :: Board -> Board
+renovateHouse b =
+  let (hcs, m) = houses b
+      m' = if m == Wood then Clay else Stone
+      fs = fields b
+      ps = pastures b
+      ss = stables b in
+  Board (hcs, m') fs ps ss

@@ -1,7 +1,7 @@
 module CreateGame where
 
 import System.Random
-import BoundedEnum
+import Utils.BoundedEnum
 import Types.GameData
 import Types.PlayerData
 import Types.CardData
