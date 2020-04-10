@@ -13,7 +13,7 @@ data ActionSpaces =
   Fishing
   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
-data ActionCardType =
+data ActionCardTypes =
   SowAndOrBakeBread |
   TakeSheep |
   Fences |
@@ -31,9 +31,11 @@ data ActionCardType =
   --deriving (Show, Read, Eq, Ord, Bounded)
 
 type Rounds = Int
-numRounds = 6
+type Stages = Int
+numRounds = 14
+numStages = 6
 
-type ActionCardRoundsMap = [(ActionCardType, Rounds)]
+type ActionCardRoundsMap = [(ActionCardTypes, Stages)]
 
 actionCardToRound :: ActionCardRoundsMap
 actionCardToRound =

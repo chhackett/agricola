@@ -1,8 +1,11 @@
 module Actions.BuildRoomAndStables where
 
+import Actions.ActionTypes
 import Types.ResourceTypes
 import Types.PlayerData
 import Types.GameData
+
+buildRoomAction = (UserAction, MaterialCost buildRoomCost, addRoom, [])
 
 buildRoomCost :: GameData -> Materials
 buildRoomCost gd =

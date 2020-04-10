@@ -28,19 +28,20 @@ data Board = Board { houses :: ([Coord], MaterialType)
 data Player = Player { board :: Board
                      , workers :: Int
                      , money :: Int
-                     , food :: [Food]
-                     , animals :: [Animals]
-                     , materials :: [Materials]
+                     , food :: Food
+                     , crops :: Crops
+                     , animals :: Animals
+                     , materials :: Materials
                      , hand :: (OccupationTypes, ImprovementTypes)
                      , activeCards :: (OccupationTypes, ImprovementTypes)
                      } deriving (Show, Read)
 
-addRoom :: Board -> Coord -> Board
-addRoom b c = let (hcs, mt) = houses b
-                  fs = fields b
-                  ps = pastures b
-                  ss = stables b in
-                  Board (c:hcs, mt) fs ps ss
+-- addRoom :: Board -> Coord -> Board
+-- addRoom b c = let (hcs, mt) = houses b
+--                   fs = fields b
+--                   ps = pastures b
+--                   ss = stables b in
+--                   Board (c:hcs, mt) fs ps ss
 
 addField :: Board -> Coord -> Board
 addField b c = let hs = houses b

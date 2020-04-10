@@ -20,6 +20,7 @@ executable agricola
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base ^>=4.12.0.0
+  build-depends:       base ^>=4.12.0.0,
+                       random >= 1.1
   hs-source-dirs:      src
   default-language:    Haskell2010

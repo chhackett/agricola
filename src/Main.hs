@@ -3,6 +3,7 @@ module Main where
 import CreateGame
 import Types.GameData
 import Actions.BuildRoomAndStables
+import Types.ResourceActions
 import System.Random
 
 main = do

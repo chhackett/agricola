@@ -1,2 +1,8 @@
 *.hi
 *.o
+*.exe
+cabal*
+dist/
+dist-newstyle/
+random-1.1/
+.ghc*
