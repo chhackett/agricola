@@ -14,7 +14,6 @@ initGameData g = let board = Board ([(0,0),(0,1)], Wood) [] [] []
                                      0   -- money
                                      0   -- food
                                      []  -- crops
-                                     []  -- animals
                                      []  -- materials
                                      (getSevenRandoms g, getSevenRandoms g)
                                      ([], []) in

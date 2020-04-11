@@ -3,21 +3,27 @@ module Actions.ResourceActions where
 import Types.ResourceTypes
 import Types.PlayerData
 
-giveFoodToPlayer :: Food -> Player -> Player
-giveFoodToPlayer f (Player b w mon f' cs ani mat h act) =
-  Player b w mon (f + f') cs ani mat h act
+addWorkerToPlayer :: Player -> Player
+addWorkerToPlayer (Player b w mon f cs ms hcs acs) =
+  Player b (w + 1) mon f cs ms hcs acs
 
 giveMoneyToPlayer :: Money -> Player -> Player
-giveMoneyToPlayer m (Player b w mon f cs ani mat h act) =
-  Player b w (m + mon) f cs ani mat h act
+giveMoneyToPlayer m (Player b w mon f cs ms hcs acs) =
+  Player b w (m + mon) f cs ms hcs acs
 
--- If a player does not have room for all animals in his pastures/house/stables
--- the extras are either discarded or turned into food automatically
-giveAnimalsToPlayer :: Animal -> Player -> Player
-giveAnimalsToPlayer a (Player b w mon f cs a' mat h act) =
-  Player b w mon f cs (combineThings a a') mat h act
+giveFoodToPlayer :: Food -> Player -> Player
+giveFoodToPlayer f (Player b w mon f' cs ms hcs acs) =
+  Player b w mon (f + f') cs ms hcs acs
+
+giveCropToPlayer :: Crop -> Player -> Player
+giveCropToPlayer c (Player b w mon f cs mat hcs acs) =
+  Player b w mon f (combineThings c cs) mat hcs acs
+
+giveMaterialToPlayer :: Material -> Player -> Player
+giveMaterialToPlayer m (Player b w mon f cs ms hcs acs) =
+  Player b w mon f cs (combineThings m ms) hcs acs
 
 combineThings :: (Eq t) => (t, Int) -> [(t, Int)] -> [(t, Int)]
-combineThings (t, n) ((t',m):more) =
-  if t == t' then (t', m + n):more else (t',m) : combineThings (t,n) more
-combineThings (t,n) [] = [(t,n)]
+combineThings (t, n) = map addThings
+  where addThings (t', n') =
+          if t==t' then (t', n + n') else (t', n')

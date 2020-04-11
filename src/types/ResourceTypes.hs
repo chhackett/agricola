@@ -12,6 +12,7 @@ data MaterialType = Wood | Clay | Reed | Stone deriving (Show, Read, Eq, Ord)
 type Material = (MaterialType, Int)
 type Materials = [Material]
 
+type Workers = Int
 type Money = Int
 type Food = Int
 

@@ -20,44 +20,17 @@ type Coord = (Int, Int)
 
 -- First two houses at (0, 0) and (0, 1)
 data Board = Board { houses :: ([Coord], MaterialType)
-                   , fields :: [(Coord, Crop)]
+                   , fields :: [(Coord, Crops)]
                    , pastures :: [([Coord], Animals)]
-                   , stables :: [(Coord, Animal)]
+                   , stables :: [(Coord, Animals)]
                    } deriving (Show, Read, Eq)
 
 data Player = Player { board :: Board
-                     , workers :: Int
-                     , money :: Int
+                     , workers :: Workers
+                     , money :: Money
                      , food :: Food
                      , crops :: Crops
-                     , animals :: Animals
                      , materials :: Materials
                      , hand :: (OccupationTypes, ImprovementTypes)
                      , activeCards :: (OccupationTypes, ImprovementTypes)
                      } deriving (Show, Read)
-
--- addRoom :: Board -> Coord -> Board
--- addRoom b c = let (hcs, mt) = houses b
---                   fs = fields b
---                   ps = pastures b
---                   ss = stables b in
---                   Board (c:hcs, mt) fs ps ss
-
-addField :: Board -> Coord -> Board
-addField b c = let hs = houses b
-                   fs = fields b
-                   fs' = (c,(Grain, 0)):fs
-                   ps = pastures b
-                   ss = stables b in
-                   Board hs fs' ps ss
-
-sowField :: Board -> Coord -> Crop -> Board
-sowField b coord crop =
-  let hs = houses b
-      fs = fields b
-      ps = pastures b
-      ss = stables b in
-      Board hs (sow fs) ps ss
-  where sow = map (\(co, cr) -> if co == coord
-                                then (co, crop)
-                                else (co, cr))
