@@ -12,6 +12,7 @@ initGameData g = let board = Board ([(0,0),(0,1)], Wood) [] [] []
                      player = Player board
                                      0   -- workers
                                      0   -- money
+                                     0   -- food
                                      []  -- crops
                                      []  -- animals
                                      []  -- materials
