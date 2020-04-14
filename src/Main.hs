@@ -1,18 +1,17 @@
 module Main where
 
-import CreateGame
-import Types.GameData
+import System.Random
+import Types.GameState
 import Actions.BuildRoomAndStables
 import Actions.ResourceActions
-import System.Random
 
 main = do
   putStrLn "Starting new Agricola game"
-  g <- newStdGen
-  let gameData = initGameData g
-      score = playGame gameData
-  print gameData
+  g <- getStdGen
+  let gameState = initGameState g
+      score = playGame gameState
+  print gameState
   putStrLn $ "The final score is: " ++ show score
 
-playGame :: GameData -> Int
-playGame _ = 0
+playGame :: GameState -> Int
+playGame gs = 0

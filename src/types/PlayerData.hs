@@ -25,7 +25,10 @@ data Board = Board { houses :: ([Coord], MaterialType)
                    , stables :: [(Coord, Animals)]
                    } deriving (Show, Read, Eq)
 
-data Player = Player { board :: Board
+type PlayerId = Int
+
+data Player = Player { playerId :: PlayerId
+                     , board :: Board
                      , workers :: Workers
                      , money :: Money
                      , food :: Food
@@ -34,3 +37,5 @@ data Player = Player { board :: Board
                      , hand :: (OccupationTypes, ImprovementTypes)
                      , activeCards :: (OccupationTypes, ImprovementTypes)
                      } deriving (Show, Read)
+
+type Players = [Player]

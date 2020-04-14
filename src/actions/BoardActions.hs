@@ -14,3 +14,6 @@ sowField (Board hs fs ps ss) co cr = Board hs (sow fs) ps ss
   where sow = map (\(co', cr') -> if co == coord
                                   then (co, cr)
                                   else (co, cr'))
+
+-- fences
+-- stables

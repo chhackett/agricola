@@ -1,21 +1,21 @@
 module Actions.BuildRoomAndStables where
 
-import Actions.ActionTypes
+import Types.ActionTypes
 import Types.ResourceTypes
 import Types.PlayerData
-import Types.GameData
+import Types.GameState
 
 buildRoomAction = (UserAction, MaterialCost buildRoomCost, addRoom, [])
 
-buildRoomCost :: GameData -> Materials
-buildRoomCost gd =
-  let b = board $ player gd
+buildRoomCost :: GameState -> Materials
+buildRoomCost gs =
+  let b = board $ currentPlayer gs
       m = snd $ houses b in
       [(m, 5), (Reed, 2)]
 
-renovateHouseCost :: GameData -> Materials
-renovateHouseCost gd =
-  let b = board $ player gd
+renovateHouseCost :: GameState -> Materials
+renovateHouseCost gs =
+  let b = board $ currentPlayer gs
       m = snd $ houses b
       n = length $ fst $ houses b in
       [(m, n), (Reed, 1)]
