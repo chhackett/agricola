@@ -16,13 +16,13 @@ import Types.CardData
 --   Building materials: wood, clay, reed, stone
 --   Food: grain or veges
 
-type Coord = (Int, Int)
+type Space = (Int, Int)
 
 -- First two houses at (0, 0) and (0, 1)
-data Board = Board { houses :: ([Coord], MaterialType)
-                   , fields :: [(Coord, Crops)]
-                   , pastures :: [([Coord], Animals)]
-                   , stables :: [(Coord, Animals)]
+data Board = Board { houses :: ([Space], MaterialType)
+                   , fields :: [(Space, Crops)]
+                   , pastures :: [([Space], Animals)]
+                   , stables :: [(Space, Animals)]
                    } deriving (Show, Read, Eq)
 
 type PlayerId = Int

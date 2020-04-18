@@ -1,4 +1,4 @@
-module Actions.BuildRoomAndStables where
+module Actions.BuildRoomAndStablesActions where
 
 import Types.ActionTypes
 import Types.ResourceTypes
