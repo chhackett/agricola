@@ -1,6 +1,7 @@
-module Action where
+module Actions.Action where
 
 import Types.ResourceTypes
+import Types.ActionTypes
 import Types.GameState
   
 -- Actions are typically chosen by a player.
@@ -13,4 +14,4 @@ data Action a = Action { actionName :: a -> String,
                          run :: GameState -> a -> GameState
                        }
 
-type AllPossibleActions = [Action]
+type AllActions = [Action]

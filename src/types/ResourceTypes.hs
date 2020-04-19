@@ -22,4 +22,6 @@ type Workers = Int
 type Money = Int
 type Food = Int
 
-type Resources = [(Food, Money, Materials, Crops, Animals)]
+type PersonalSupply = (Food, Money, Materials, Crops)
+
+type Resources = (Food, Money, Materials, Crops, Animals)

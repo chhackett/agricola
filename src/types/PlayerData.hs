@@ -1,7 +1,7 @@
 module Types.PlayerData where
 
+import Types.BasicGameTypes
 import Types.ResourceTypes
-import Types.CardData
 
 -- Definition of player data types
 
@@ -14,7 +14,9 @@ import Types.CardData
 -- A player has (not at a specific location on the board)
 --   Workers - up to number of house tiles (with exceptions)
 --   Building materials: wood, clay, reed, stone
---   Food: grain or veges
+--   Crop types: grain or veges
+--   Money
+--   Food
 
 type Space = (Int, Int)
 
@@ -23,19 +25,17 @@ data Board = Board { houses :: ([Space], MaterialType)
                    , fields :: [(Space, Crops)]
                    , pastures :: [([Space], Animals)]
                    , stables :: [(Space, Animals)]
-                   } deriving (Show, Read, Eq)
+                   } deriving (Show, Read)
 
 type PlayerId = Int
 
 data Player = Player { playerId :: PlayerId
+                     , name :: String
                      , board :: Board
                      , workers :: Workers
-                     , money :: Money
-                     , food :: Food
-                     , crops :: Crops
-                     , materials :: Materials
-                     , hand :: (OccupationTypes, ImprovementTypes)
-                     , activeCards :: (OccupationTypes, ImprovementTypes)
+                     , personalSupply :: PersonalSupply
+                     , hand :: (OccupationTypes, MinorImprovementTypes)
+                     , activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
                      } deriving (Show, Read)
 
 type Players = [Player]
