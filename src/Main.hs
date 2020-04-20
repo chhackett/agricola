@@ -9,7 +9,7 @@ main = do
   g <- getStdGen
   let gameState = initGameState g "Chris"
       score = playGame gameState
-  -- print gameState
+  print gameState
   putStrLn $ "The final score is: " ++ show score
 
 -- Game sequence:
@@ -34,3 +34,4 @@ main = do
 
 playGame :: GameState -> Int
 playGame gs = 0
+

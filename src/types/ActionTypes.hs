@@ -20,7 +20,11 @@ data ActionState = ActionState
   , resources :: Resources
   , playerResources :: [(PlayerId, Resources)]
   }
-  deriving (Show, Read)
+  deriving (Read)
+
+instance Show ActionState where
+  show (ActionState _ a n w r _) = show a ++ ":\n\tworkers: " ++
+      show w ++ ", resources: " ++ show r ++ "\n"
 
 getActionType :: Action -> ActionType
 getActionType a
@@ -34,20 +38,15 @@ getActionType a
   | a == TakeClay                            = ActionSpace
   | a == TakeReed                            = ActionSpace
   | a == Fishing                             = ActionSpace
-  | a == SowAndOrBakeBread                   = RoundSpace
-  | a == TakeSheep                           = RoundSpace
-  | a == Fences                              = RoundSpace
-  | a == MajorOrMinorImprovement             = RoundSpace
-  | a == AfterFamilyGrowthAlsoImprovement    = RoundSpace
-  | a == AfterRenovationAlsoImprovement      = RoundSpace
-  | a == TakeStone1                          = RoundSpace
-  | a == TakeStone2                          = RoundSpace
-  | a == TakeVege                            = RoundSpace
-  | a == TakeBoar                            = RoundSpace
-  | a == TakeCattle                          = RoundSpace
-  | a == PlowAndOrSow                        = RoundSpace
-  | a == FamilyGrowthWithoutRoom             = RoundSpace
-  | a == AfterRenovationAlsoFences           = RoundSpace
+  | otherwise = RoundSpace
+
+roundCardStages =
+  [[SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
+   [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone1],
+   [TakeStone2, TakeVege],
+   [TakeBoar, TakeCattle],
+   [PlowAndOrSow, FamilyGrowthWithoutRoom],
+   [AfterRenovationAlsoFences]]
 
 roundCardToStage :: Action -> Int
 roundCardToStage a
@@ -65,6 +64,7 @@ roundCardToStage a
   | a == PlowAndOrSow                        = 4
   | a == FamilyGrowthWithoutRoom             = 4
   | a == AfterRenovationAlsoFences           = 5
+  | otherwise = 0
 
 data Action =
   BuildRoomAndOrStables |
