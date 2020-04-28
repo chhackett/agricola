@@ -1,16 +1,13 @@
 module Main where
 
+import Control.Monad.State
 import System.Random
 import Types.GameState
+import Types.PlayerData
+import Types.BasicGameTypes
 import Actions.ResourceActions
-
-main = do
-  putStrLn "Starting new Agricola game"
-  g <- getStdGen
-  let gameState = initGameState g "Chris"
-      score = playGame gameState
-  print gameState
-  putStrLn $ "The final score is: " ++ show score
+import Actions.AutomaticActions
+import Scoring
 
 -- Game sequence:
 -- StartRound : draw a new round card
@@ -32,6 +29,35 @@ main = do
 -- These will be modeled by composing an 'Action' type that specifies whether it can be played by a player. This is based on the state
 -- of the game at the time. 
 
-playGame :: GameState -> Int
-playGame gs = 0
+--newtype Stack a = Stack { unStack :: StateT Int (WriterT [Int] IO) a }
+type GameStateT a = StateT GameState IO a
 
+main :: IO ()
+main = do
+  putStrLn "Starting new Agricola game"
+  g <- getStdGen
+  putStrLn "Please enter your name: "
+  name <- getLine
+  (scores, finalState) <- runStateT playGame (initGameState g name)
+  print finalState
+  putStrLn $ "The final score is: " ++ show scores
+
+-- Returns the final scores as the result
+playGame :: GameStateT [Int]
+playGame = do
+  ps <- gets _players
+  return $ map calculateScore ps
+
+-- Evaluates the result of playing rounds
+doRounds :: GameStateT ()
+doRounds = undefined
+
+-- Evaluates the result of playing all phases in a round
+doPhases :: GameStateT ()
+doPhases = undefined
+
+--getPhase :: GameState -> Phase
+--getPhase gst = _phase $ get gst
+
+--processActions :: GameStateT ()
+--processActions gst = undefined

@@ -18,8 +18,7 @@ data ActionState = ActionState
   , name :: String
   , workers :: [PlayerId]
   , resources :: Resources
-  , playerResources :: [(PlayerId, Resources)]
-  }
+  , playerResources :: [(PlayerId, Resources)] }
   deriving (Read)
 
 instance Show ActionState where
@@ -47,24 +46,6 @@ roundCardStages =
    [TakeBoar, TakeCattle],
    [PlowAndOrSow, FamilyGrowthWithoutRoom],
    [AfterRenovationAlsoFences]]
-
-roundCardToStage :: Action -> Int
-roundCardToStage a
-  | a == SowAndOrBakeBread                   = 0
-  | a == TakeSheep                           = 0
-  | a == Fences                              = 0
-  | a == MajorOrMinorImprovement             = 0
-  | a == AfterFamilyGrowthAlsoImprovement    = 1
-  | a == AfterRenovationAlsoImprovement      = 1
-  | a == TakeStone1                          = 1
-  | a == TakeStone2                          = 2
-  | a == TakeVege                            = 2
-  | a == TakeBoar                            = 3
-  | a == TakeCattle                          = 3
-  | a == PlowAndOrSow                        = 4
-  | a == FamilyGrowthWithoutRoom             = 4
-  | a == AfterRenovationAlsoFences           = 5
-  | otherwise = 0
 
 data Action =
   BuildRoomAndOrStables |

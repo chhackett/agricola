@@ -8,13 +8,13 @@ import Types.ResourceTypes
 import Types.ActionTypes
 
 data GameState = GameState
-  { round :: Round
-  , phase :: Phase
-  , currentPlayer :: PlayerId
-  , players :: Players
-  , currentActionStates :: ActionStates
-  , futureActionCards :: Actions
-  , availableMajorImprovements :: MajorImprovementTypes }
+  { _round :: Round
+  , _phase :: Phase
+  , _currentPlayer :: PlayerId
+  , _players :: Players
+  , _currentActionStates :: ActionStates
+  , _futureActionCards :: Actions
+  , _availableMajorImprovements :: MajorImprovementTypes }
   deriving (Show)
 
 initGameState :: (RandomGen g) => g -> String -> GameState
@@ -23,7 +23,8 @@ initGameState g pn =
       (g3, g4) = split g2
       occupations = getSevenRandoms g1 :: OccupationTypes
       improvements = getSevenRandoms g2 :: MinorImprovementTypes
-      player = Player 0
+      pId = 0
+      player = Player pId
                       pn
                       (Board ([(0,0),(0,1)], Wood) [] [] [])
                       2     -- workers
@@ -31,13 +32,16 @@ initGameState g pn =
                       , 2   -- money
                       , []  -- materials
                       , []) -- crops
-                      (occupations, improvements)
-                      ([], [], []) in
+                      ( occupations
+                      , improvements)
+                      ( []
+                      , []
+                      , []) in
   GameState 1
             StartRound
-            0
+            pId
             [player]
-            initializeActionStates
+            initActionStates
             (initFutureActionCards g3)
             []
 
@@ -50,16 +54,8 @@ initActionStates =
   map buildActionState actions'
 
 initFutureActionCards :: (RandomGen g) => g -> Actions
-initFutureActionCards g =
-  let stages = [0 .. 5]
-      gs = []
-      -- actions = [minBound .. maxBound] :: Actions
-      -- roundActions = filter (\action -> getActionType action == RoundSpace) actions
-      randomize as g' = let (g1, g2) = split g' in (g1, shuffle' as (length as) g2) in
-      map (\s -> randomize (roundCardStages !! s, g)) stages
-
-generateSomeGenerators :: (RandomGen g) => g -> Int -> [g]
-generateSomeGenerators g n = splitAdd gs
+initFutureActionCards g = snd $ foldl randomize (g, []) roundCardStages
+  where randomize (g', rcs) rc = let (g1, g2) = split g' in (g1, rcs ++ shuffle' rc (length rc) g2)
 
 -- Want to draw seven random cards, not repeating any
 getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]

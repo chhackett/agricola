@@ -4,4 +4,4 @@ import Types.PlayerData
 
 calculateScore :: Player -> Int
 calculateScore p =
-  workers p * 3
+  _workers p * 3

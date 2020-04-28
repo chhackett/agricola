@@ -17,8 +17,7 @@ data Phase =
   Harvest |
   HarvestField |
   HarvestFeed |
-  HarvestBreed |
-  EndRound
+  HarvestBreed
   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
 data MajorImprovementType =

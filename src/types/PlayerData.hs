@@ -1,5 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Types.PlayerData where
 
+import Control.Lens
 import Types.BasicGameTypes
 import Types.ResourceTypes
 
@@ -18,24 +21,28 @@ import Types.ResourceTypes
 --   Money
 --   Food
 
+
 type Space = (Int, Int)
-
--- First two houses at (0, 0) and (0, 1)
-data Board = Board { houses :: ([Space], MaterialType)
-                   , fields :: [(Space, Crops)]
-                   , pastures :: [([Space], Animals)]
-                   , stables :: [(Space, Animals)]
-                   } deriving (Show, Read)
-
 type PlayerId = Int
 
-data Player = Player { playerId :: PlayerId
-                     , name :: String
-                     , board :: Board
-                     , workers :: Workers
-                     , personalSupply :: PersonalSupply
-                     , hand :: (OccupationTypes, MinorImprovementTypes)
-                     , activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
+-- First two houses at (0, 0) and (0, 1)
+data Board = Board { _houses :: ([Space], MaterialType)
+                   , _fields :: [(Space, Crop)]
+                   , _pastures :: [([Space], Animals)]
+                   , _stables :: [(Space, Animals)]
+                   } deriving (Show, Read)
+
+$(makeLenses ''Board)
+
+data Player = Player { _playerId :: PlayerId
+                     , _name :: String
+                     , _board :: Board
+                     , _workers :: Workers
+                     , _personalSupply :: PersonalSupply
+                     , _hand :: (OccupationTypes, MinorImprovementTypes)
+                     , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
                      } deriving (Show, Read)
 
 type Players = [Player]
+
+$(makeLenses ''Player)
