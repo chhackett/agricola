@@ -29,9 +29,6 @@ import Scoring
 -- These will be modeled by composing an 'Action' type that specifies whether it can be played by a player. This is based on the state
 -- of the game at the time. 
 
---newtype Stack a = Stack { unStack :: StateT Int (WriterT [Int] IO) a }
-type GameStateT a = StateT GameState IO a
-
 main :: IO ()
 main = do
   putStrLn "Starting new Agricola game"
@@ -45,19 +42,41 @@ main = do
 -- Returns the final scores as the result
 playGame :: GameStateT [Int]
 playGame = do
+  doRounds
   ps <- gets _players
   return $ map calculateScore ps
 
 -- Evaluates the result of playing rounds
 doRounds :: GameStateT ()
-doRounds = undefined
+doRounds = doPhases
 
 -- Evaluates the result of playing all phases in a round
 doPhases :: GameStateT ()
-doPhases = undefined
+doPhases = do
+  modify drawNextRoundCard
+  modify replenish
+  doWorkPhase
 
---getPhase :: GameState -> Phase
---getPhase gst = _phase $ get gst
+doWorkPhase :: GameStateT ()
+doWorkPhase = do
+  actions <- gets getAllowedActions
+  let inputMap = inputToActionTypeMap actions
+  lift $ putStrLn "Select an action: "
+  lift $ print inputMap
+  selection <- lift getChar
+  lift $ putStrLn $ "You selected: " ++ [selection]
+  return ()
 
---processActions :: GameStateT ()
---processActions gst = undefined
+getAllowedActions :: GameState -> ActionTypes
+getAllowedActions gs = map actionType (_currentActionSpaces gs)
+
+inputToActionTypeMap :: ActionTypes -> [(ActionType, Char)]
+inputToActionTypeMap [] = []
+inputToActionTypeMap ats = fst $ foldl next ([], 'a') ats
+  where next (result, c) at =
+          let c' = if c == 'z' then 'A' else succ c in
+          ((at, c):result, c')
+
+showOptions :: [(ActionType, Char)] -> String
+showOptions = foldl builder ""
+  where builder result option = result ++ "\n" ++ [snd option] ++ ": " ++ show (fst option)

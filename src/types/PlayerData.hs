@@ -18,18 +18,16 @@ import Types.ResourceTypes
 --   Workers - up to number of house tiles (with exceptions)
 --   Building materials: wood, clay, reed, stone
 --   Crop types: grain or veges
---   Money
 --   Food
-
 
 type Space = (Int, Int)
 type PlayerId = Int
 
 -- First two houses at (0, 0) and (0, 1)
-data Board = Board { _houses :: ([Space], MaterialType)
-                   , _fields :: [(Space, Crop)]
-                   , _pastures :: [([Space], Animals)]
-                   , _stables :: [(Space, Animals)]
+data Board = Board { _houses :: ([Space], ResourceType)
+                   , _fields :: [(Space, ResourceType)]
+                   , _pastures :: [([Space], Resources)]
+                   , _stables :: [(Space, Resources)]
                    } deriving (Show, Read)
 
 $(makeLenses ''Board)
@@ -38,7 +36,7 @@ data Player = Player { _playerId :: PlayerId
                      , _name :: String
                      , _board :: Board
                      , _workers :: Workers
-                     , _personalSupply :: PersonalSupply
+                     , _resources :: Resources  -- in the personal supply
                      , _hand :: (OccupationTypes, MinorImprovementTypes)
                      , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
                      } deriving (Show, Read)

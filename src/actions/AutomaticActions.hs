@@ -1,26 +1,43 @@
 module Actions.AutomaticActions where
 
 import Control.Lens
+import Actions.ResourceActions
 import Types.BasicGameTypes
 import Types.GameState
 import Types.PlayerData
-import Types.ActionTypes
+import Types.ResourceTypes
 
 drawNextRoundCard :: GameState -> GameState
-drawNextRoundCard (GameState r ph cp ps ass (act:acts) mis) =
-  let nextActionState = ActionState RoundSpace act (show act) [] (0,0,[],[],[]) [] in
-  GameState r ph cp ps (nextActionState:ass) acts mis
+drawNextRoundCard (GameState r ph cp ps cas (fa:fas) mis) =
+  GameState r ph cp ps (fa:cas) fas mis
+
+replenish :: GameState -> GameState
+replenish (GameState r ph cp ps cas fas mis) =
+  let cas' = map replenishSpace cas in GameState r ph cp ps cas' fas mis
+
+replenishSpace :: ActionSpace -> ActionSpace
+replenishSpace (ActionSpace at rs c allowed runFunc ws) =
+  let r = replenishMap at
+      rs' = if snd r > 0 then combineThings r rs else rs in
+  ActionSpace at rs' c allowed runFunc ws
+
+replenishMap :: ActionType -> Resource
+replenishMap at
+  | at == TakeWood = (Wood, 3)
+  | at == TakeClay = (Clay, 1)
+  | at == TakeReed = (Reed, 1)
+  | at == Fishing = (Food, 1)
+  | at == TakeSheep = (Sheep, 1)
+  | at == TakeStone = (Stone, 1)
+  | at == TakeBoar = (Boar, 1)
+  | at == TakeCattle = (Cattle, 1)
+  | otherwise = (Wood, 0)
 
 harvestFields :: Player -> Player
 harvestFields p =
-  let fields = _fields $ _board p in
-  p
+  let fields = _fields $ _board p in p
     -- harvestField (gs, vs, fields') (_, (cropType, n)) = if n > 0 then 
     --   (grains, veges, fs') = foldl harvestField (0, 0, []) fields
-  
-
-replenish :: ActionStates -> ActionStates
-replenish = undefined
 
 nextPhase :: GameState -> GameState
 nextPhase (GameState r ph cp ps ass arcs rrcs) =
