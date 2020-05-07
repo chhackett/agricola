@@ -1,5 +1,6 @@
 module Types.GameState where
 
+import qualified Data.Map as M
 import Control.Monad.State
 import System.Random
 import System.Random.Shuffle
@@ -12,25 +13,28 @@ type GameStateT a = StateT GameState IO a
 data GameState = GameState
   { _round :: Round
   , _phase :: Phase
-  , _currentPlayer :: PlayerId
+  , _currentPlayer :: Player
   , _players :: Players
   , _currentActionSpaces :: ActionSpaces
   , _futureActionSpaces :: ActionSpaces
   , _availableMajorImprovements :: MajorImprovementTypes }
   deriving (Show)
 
+type GameAction = GameState -> GameState
+
+type PlayerMap = M.Map PlayerId Player
+
 type ActionSpaces = [ActionSpace]
 
 data ActionSpace = ActionSpace
   { actionType :: ActionType
   , resources :: Resources
-  , cost :: GameState -> Resources
   , isAllowed :: GameState -> Bool
-  , run :: GameState -> GameState
+  , run :: GameAction
   , workers :: [PlayerId] }
 
 instance Show ActionSpace where
-  show (ActionSpace at rs _ _ _ ws) = "\n" ++ show at ++ ": resources: " ++ show rs ++ ": workers: " ++ show ws
+  show (ActionSpace at rs _ _ ws) = "\n" ++ show at ++ ": resources: " ++ show rs ++ ": workers: " ++ show ws
 
 type ActionTypes = [ActionType]
 data ActionType =
@@ -71,38 +75,15 @@ initGameState g name =
                       (Board ([(0,0),(0,1)], Wood) [] [] [])
                       2     -- workers
                       []
-                      ( occupations, improvements)
-                      ( [], [], []) in
+                      (occupations, improvements)
+                      ([], [], []) in
   GameState 1
             StartRound
-            pId
+            player
             [player]
             initActionSpaces
             (initFutureActionCards g3)
             []
-
--- Initialize the actions space cards
-initActionSpaces :: ActionSpaces
-initActionSpaces =
-  let ats = filter (not . isRoundCard) [minBound .. maxBound] in
-  map initActionSpace ats
-
-initFutureActionCards :: (RandomGen g) => g -> ActionSpaces
-initFutureActionCards g = map initActionSpace $ snd $ foldl randomize (g, []) roundCardStages
-  where randomize (g', rcs) rc = let (g1, g2) = split g' in (g1, rcs ++ shuffle' rc (length rc) g2)
-
-initActionSpace :: ActionType -> ActionSpace
-initActionSpace at = ActionSpace at [] free alwaysAllowed noop []
-
--- costs
-free :: GameState -> Resources
-free gs = []
-
-alwaysAllowed :: GameState -> Bool
-alwaysAllowed gs = True
-
-noop :: GameState -> GameState
-noop gs = gs
 
 -- Want to draw seven random cards, not repeating any
 getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]
@@ -123,9 +104,29 @@ isRoundCard a
   | a == TakeClay                            = False
   | a == TakeReed                            = False
   | a == Fishing                             = False
-  | otherwise = True
+  | otherwise                                = True
 
-roundCardStages =
+-- Initialize the actions space cards
+initActionSpaces :: ActionSpaces
+initActionSpaces =
+  let ats = filter (not . isRoundCard) [minBound .. maxBound] in
+  map initActionSpace ats
+
+initActionSpace :: ActionType -> ActionSpace
+initActionSpace at = ActionSpace at [] alwaysAllowed noop []
+
+alwaysAllowed :: GameState -> Bool
+alwaysAllowed gs = True
+
+noop :: GameAction
+noop gs = gs
+
+-- initialize future action cards list with random generator
+initFutureActionCards :: (RandomGen g) => g -> ActionSpaces
+initFutureActionCards g = map initActionSpace $ snd $ foldl randomize (g, []) actionCardStageMap
+  where randomize (g', rcs) rc = let (g1, g2) = split g' in (g1, rcs ++ shuffle' rc (length rc) g2)
+
+actionCardStageMap =
   [[SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
     [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone],
     [TakeBoar, TakeVege],

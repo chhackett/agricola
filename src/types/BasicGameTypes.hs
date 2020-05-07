@@ -2,8 +2,8 @@ module Types.BasicGameTypes where
 
 type Round = Int
 type Stage = Int
-numRounds = 14
-numStages = 6
+numRounds = 14 :: Round
+numStages = 6 :: Stage
 
 type MajorImprovementTypes = [MajorImprovementType]
 type MinorImprovementTypes = [MinorImprovementType]

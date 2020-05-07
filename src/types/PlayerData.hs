@@ -42,5 +42,4 @@ data Player = Player { _playerId :: PlayerId
                      } deriving (Show, Read)
 
 type Players = [Player]
-
 $(makeLenses ''Player)

@@ -7,19 +7,25 @@ import Types.GameState
 import Types.PlayerData
 import Types.ResourceTypes
 
-drawNextRoundCard :: GameState -> GameState
+getNextAction :: GameAction
+getNextAction gs =
+  let fas = _futureActionSpaces gs
+      cas' = head fas : _currentActionSpaces gs in
+  gs { _currentActionSpaces = cas'} { _futureActionSpaces =  tail fas }
+
+drawNextRoundCard :: GameAction
 drawNextRoundCard (GameState r ph cp ps cas (fa:fas) mis) =
   GameState r ph cp ps (fa:cas) fas mis
 
-replenish :: GameState -> GameState
+replenish :: GameAction
 replenish (GameState r ph cp ps cas fas mis) =
   let cas' = map replenishSpace cas in GameState r ph cp ps cas' fas mis
 
 replenishSpace :: ActionSpace -> ActionSpace
-replenishSpace (ActionSpace at rs c allowed runFunc ws) =
+replenishSpace (ActionSpace at rs allowed runFunc ws) =
   let r = replenishMap at
       rs' = if snd r > 0 then combineThings r rs else rs in
-  ActionSpace at rs' c allowed runFunc ws
+  ActionSpace at rs' allowed runFunc ws
 
 replenishMap :: ActionType -> Resource
 replenishMap at
@@ -39,10 +45,10 @@ harvestFields p =
     -- harvestField (gs, vs, fields') (_, (cropType, n)) = if n > 0 then 
     --   (grains, veges, fs') = foldl harvestField (0, 0, []) fields
 
-nextPhase :: GameState -> GameState
+nextPhase :: GameAction
 nextPhase (GameState r ph cp ps ass arcs rrcs) =
-  let nextPhase = if ph == HarvestBreed || (ph == Harvest && not endOfStageRound) then StartRound else succ ph
-      endOfStageRound = (r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14)
+  let endOfStageRound = (r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14)
+      nextPhase = if ph == HarvestBreed || (ph == Harvest && not endOfStageRound) then StartRound else succ ph
       r' = if nextPhase == StartRound then r+1 else r in
   GameState r' nextPhase cp ps ass arcs rrcs
 
