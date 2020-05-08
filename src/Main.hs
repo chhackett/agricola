@@ -10,6 +10,7 @@ import Types.PlayerData
 import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.AutomaticActions
+import InitialSetup
 import Scoring
 
 -- Game sequence:
@@ -61,10 +62,12 @@ doRounds = do
 -- Evaluates the result of playing all phases in a round
 doPhases :: GameStateT ()
 doPhases = do
+  currentRound <- gets _round
+  lift $ putStrLn $ "Starting round " ++ show currentRound
   doStartRoundPhase
   doReplenishPhase
   doWorkPhase
-  currentRound <- gets _round
+  doReturnHomePhase
   when (endOfStageRound currentRound) doHarvestPhase
 
 doStartRoundPhase :: GameStateT ()
@@ -76,23 +79,30 @@ doStartRoundPhase = do
 
 doReplenishPhase :: GameStateT ()
 doReplenishPhase = do
-  lift $ putStrLn "Replenishing action spaces!"
-  modify replenish
+  lift $ putStrLn "Replenishing action spaces:"
+  newGS <- gets replenish
+  let spaces = _currentActionSpaces newGS
+  lift $ putStrLn $ showSpacesWithResources spaces
+  put newGS
+  return ()
 
 doWorkPhase :: GameStateT ()
 doWorkPhase = do
+  lift $ putStrLn "Work phase:"
   gs <- get
   let actions = getAllowedActions gs
       actionMap = inputToActionTypeMap actions
+      n = availableWorkers gs
+  lift $ putStrLn $ "You have " ++ show n ++ " workers to place"
+  lift $ putStrLn $ "Current gamestate:\n" ++ show gs
   nextAction <- lift $ getNextSelection actionMap
   lift $ putStrLn $ "You selected: " ++ show nextAction
-  let maybeActionSpace = getActionSpace nextAction gs
-  case maybeActionSpace of
-    Nothing        -> lift $ putStrLn "Action not available!"
-    Just theAction -> modify $ run theAction
-  return ()
+  modify $ putCurrentPlayerWorkerOnActionSpace nextAction
+  modify $ run nextAction
+  n' <- gets availableWorkers
+  when (n' > 0) doWorkPhase
 
-getNextSelection :: Map.Map Char ActionType -> IO ActionType
+getNextSelection :: Map.Map Char ActionSpace -> IO ActionSpace
 getNextSelection actionMap = do
   putStr $ "Select from the following actions:\n" ++ showOptions actionMap ++ "\n\nEnter choice: "
   selection <- getLine
@@ -103,6 +113,10 @@ getNextSelection actionMap = do
           Nothing     -> do putStrLn "Invalid selection. Please select an option and press <return>"
                             getNextSelection actionMap
           Just action -> return action
+
+doReturnHomePhase :: GameStateT ()
+doReturnHomePhase = 
+  return ()
 
 doHarvestPhase :: GameStateT ()
 doHarvestPhase = do
@@ -126,31 +140,37 @@ doBreedPhase = do
   lift $ putStrLn "Harvest Time!"
   return ()
 
-getAllowedActions :: GameState -> ActionTypes
-getAllowedActions gs = map actionType (_currentActionSpaces gs)
+getAllowedActions :: GameState -> ActionSpaces
+getAllowedActions gs =
+  let spaces = _currentActionSpaces gs 
+      isAllowed spaces' a = let f = getConditionFunc a
+                                b = f gs a in if b then a:spaces' else spaces' in
+  foldl isAllowed [] spaces
 
-getActionSpace :: ActionType -> GameState -> Maybe ActionSpace
-getActionSpace at gs = lookupAction $ _currentActionSpaces gs
-  where lookupAction actionSpaces =
-          case actionSpaces of []  -> Nothing
-                               [a] -> if actionType a == at then Just a
-                                                      else Nothing
-                               a:as -> if actionType a == at then Just a
-                                                         else lookupAction as
+-- moreWorkers :: GameState -> Bool
+-- moreWorkers gs = foldl hasAvailableWorker False $ _players gs
+--   where hasAvailableWorker b p = b || _workers p > 0
+
+availableWorkers :: GameState -> Int
+availableWorkers gs = _workers $ _currentPlayer gs
 
 getNextRoundCard :: GameState -> ActionSpace
 getNextRoundCard (GameState _ _ _ _ _ futureCards _) = head futureCards
 
-inputToActionTypeMap :: ActionTypes -> Map.Map Char ActionType
+inputToActionTypeMap :: ActionSpaces -> Map.Map Char ActionSpace
 inputToActionTypeMap [] = Map.empty
-inputToActionTypeMap ats = fst $ foldl next (Map.empty, 'a') ats
-  where next (result, c) at =
+inputToActionTypeMap as = fst $ foldl next (Map.empty, 'a') as
+  where next (result, c) a =
           let c' = if c == 'z' then 'A' else succ c in
-          (Map.insert c at result, c')
+          (Map.insert c a result, c')
 
-showOptions :: Map.Map Char ActionType -> String
+showOptions :: Map.Map Char ActionSpace -> String
 showOptions options = let optionsList = Map.toList options in foldl builder "" optionsList
   where builder result option = result ++ "\n\t(" ++ [fst option] ++ ") " ++ show (snd option)
 
 endOfStageRound :: Round -> Bool
 endOfStageRound r = r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14
+
+showSpacesWithResources :: ActionSpaces -> String
+showSpacesWithResources = foldl formatter ""
+  where formatter acc as = acc ++ if hasThings $ Types.GameState.resources as then show as ++ "\n" else ""
