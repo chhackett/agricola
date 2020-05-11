@@ -1,62 +1,66 @@
 module Actions.ResourceActions where
 
-import Types.GameState
-import Types.ResourceTypes
-import Types.PlayerData
+import Control.Lens
+import Types.GameState as GS
+import Types.BasicGameTypes
+import Types.PlayerData as PD
+import Utils.ListUtils
 
 addWorkerToPlayer :: Player -> Player
-addWorkerToPlayer (Player id n b w ps hcs acs) =
-  Player id n b (w + 1) ps hcs acs
+addWorkerToPlayer = over workers (+1)
+
+giveResourcesAction :: ResourceType -> ActionType -> GameAction
+giveResourcesAction rs at =
+  GameAction ("Take all resources of type [" ++ show rs ++ "]")
+             (giveResourcesOfTypeToCurrentPlayer rs at)
+             Nothing
 
 giveResourcesOfTypeToCurrentPlayer :: ResourceType -> ActionType -> GameState -> GameState
 giveResourcesOfTypeToCurrentPlayer rt at gs =
-  let as = _currentActionSpaces gs
-      maybeA = getActionSpaceFromType at as in
+  let cas = GS._currentActionSpaces gs
+      maybeA = getFirstElem GS._actionType at cas in
   case maybeA of
     Nothing -> gs
     Just actionSpace ->
-      let cp = _currentPlayer gs
-          rs = Types.GameState.resources actionSpace
+      let cp = GS.currentPlayer gs
+          rs = GS._resources actionSpace
           amount = getAmount rt rs in
-          -- cprs = _resources cp in
       if amount > 0
       then
         let cp' = giveResourceToPlayer (rt, amount) cp
+            ps' = replaceElem PD._playerId cp' (GS._players gs)
             rs' = removeResourceType rt rs
-            actionSpace' = actionSpace { Types.GameState.resources = rs' }
-            as' = replaceElem actionType actionSpace' as in
-        gs { _currentPlayer = cp' } { _currentActionSpaces = as' }
+            actionSpace' = actionSpace { GS._resources = rs' }
+            cas' = replaceElem GS._actionType actionSpace' cas in
+        gs { GS._players = ps' } { GS._currentActionSpaces = cas' }
       else gs
 
-putCurrentPlayerWorkerOnActionSpace :: ActionSpace -> GameAction
+putCurrentPlayerWorkerOnActionSpace :: ActionSpace -> GameState -> GameState
 putCurrentPlayerWorkerOnActionSpace a g =
-  let p = _currentPlayer g
-      n = _workers p in
+  let p = GS.currentPlayer g
+      n = PD._workers p in
   if n > 0
   then
-    let p' = p { _workers = n - 1 }
-        pids = Types.GameState.workers a
-        a' = a { Types.GameState.workers = _playerId p : pids}
-        cas = _currentActionSpaces g
-        cas' = replaceElem actionType a' cas in
-    g { _currentPlayer = p' } { _currentActionSpaces = cas' }
+    let p' = p { PD._workers = n - 1 }
+        ps' = p':tail (_players g)
+        pids = GS._playerIds a
+        a' = a { GS._playerIds = PD._playerId p : pids}
+        cas = GS._currentActionSpaces g
+        cas' = replaceElem GS._actionType a' cas in
+    g { _players = ps' } { _currentActionSpaces = cas' }
   else g
 
-getActionSpaceFromType :: ActionType -> ActionSpaces -> Maybe ActionSpace
-getActionSpaceFromType at = foldl getActionSpace Nothing
-  where getActionSpace acc a = if actionType a == at then Just a else acc
+giveResourceToCurrentPlayer :: Resource -> GameState -> GameState
+giveResourceToCurrentPlayer r gs = 
+  let p = currentPlayer gs
+      p' = giveResourceToPlayer r p in
+  gs { _players = p':tail (_players gs) }
 
-replaceElem :: (Eq b) => (a -> b) -> a -> [a] -> [a]
-replaceElem f x xs =
-  let t = f x
-      replaceIf x' = let t' = f x' in if t == t' then x else x' in
-  map replaceIf xs
-  
 giveResourceToPlayer :: Resource -> Player -> Player
 giveResourceToPlayer r (Player id n b w rs hcs acs) =
   let rs' = combineThings r rs in
   Player id n b w rs' hcs acs
-         
+
 removeResourceType :: ResourceType -> Resources -> Resources
 removeResourceType rt = filter (\(rt', _) -> rt /= rt')
 
@@ -72,6 +76,6 @@ hasThings :: [(t, Int)] -> Bool
 hasThings = foldl hasThing False
   where hasThing b a = b || snd a > 0
 
-getAmount :: ResourceType -> [(ResourceType, Int)] -> Int
+getAmount :: (Eq a) => a -> [(a, Int)] -> Int
 getAmount rt = foldl get 0
   where get acc (rt', n) = if rt == rt' then n else acc

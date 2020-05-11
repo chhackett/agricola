@@ -1,6 +1,6 @@
 module BoardActions where
 
-import Types.ResourceTypes
+import Types.BasicGameTypes
 import Types.PlayerData
 
 addRoom :: Board -> Space -> Board

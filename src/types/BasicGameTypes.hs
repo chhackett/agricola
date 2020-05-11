@@ -5,6 +5,25 @@ type Stage = Int
 numRounds = 14 :: Round
 numStages = 6 :: Stage
 
+type Workers = Int
+
+data ResourceType = Food | Wood | Clay | Reed | Stone | Grain | Veges | Sheep | Boar | Cattle
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
+data ResourceKind = Crop | Animal | Building
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
+buildingTypes :: [ResourceType]
+buildingTypes = [Wood, Clay, Reed, Stone]
+
+animalTypes = [Sheep, Boar, Cattle]
+cropTypes = [Grain, Veges]
+
+type ResourceKinds = [ResourceKind]
+
+type Resource = (ResourceType, Int)
+type Resources = [Resource]
+
 type MajorImprovementTypes = [MajorImprovementType]
 type MinorImprovementTypes = [MinorImprovementType]
 type OccupationTypes = [OccupationType]

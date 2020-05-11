@@ -5,8 +5,8 @@ import Control.Monad
 import Control.Monad.State
 import qualified Data.Map as Map
 import System.Random
-import Types.GameState
-import Types.PlayerData
+import Types.GameState as GS
+import Types.PlayerData as PD
 import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.AutomaticActions
@@ -57,6 +57,7 @@ doRounds :: GameStateT ()
 doRounds = do
   doPhases
   futureCards <- gets _futureActionSpaces
+  modify nextRound
   unless (null futureCards) doRounds
 
 -- Evaluates the result of playing all phases in a round
@@ -73,17 +74,16 @@ doPhases = do
 doStartRoundPhase :: GameStateT ()
 doStartRoundPhase = do
   nextRoundCard <- gets getNextRoundCard
-  lift $ putStrLn $ "The next card is: " ++ show (actionType nextRoundCard) ++ "\n"
+  lift $ putStrLn $ "The next card is: " ++ show (GS._actionType nextRoundCard) ++ "\n"
   modify drawNextRoundCard
   -- check for additional actions (ex: players getting resources)
 
 doReplenishPhase :: GameStateT ()
 doReplenishPhase = do
   lift $ putStrLn "Replenishing action spaces:"
-  newGS <- gets replenish
-  let spaces = _currentActionSpaces newGS
+  modify replenish
+  spaces <- gets _currentActionSpaces
   lift $ putStrLn $ showSpacesWithResources spaces
-  put newGS
   return ()
 
 doWorkPhase :: GameStateT ()
@@ -98,8 +98,9 @@ doWorkPhase = do
   nextAction <- lift $ getNextSelection actionMap
   lift $ putStrLn $ "You selected: " ++ show nextAction
   modify $ putCurrentPlayerWorkerOnActionSpace nextAction
-  modify $ run nextAction
+  modify $ GS._run $ GS._action nextAction
   n' <- gets availableWorkers
+  lift $ putStrLn $ "There are now " ++ show n' ++ " left."
   when (n' > 0) doWorkPhase
 
 getNextSelection :: Map.Map Char ActionSpace -> IO ActionSpace
@@ -115,8 +116,7 @@ getNextSelection actionMap = do
           Just action -> return action
 
 doReturnHomePhase :: GameStateT ()
-doReturnHomePhase = 
-  return ()
+doReturnHomePhase = modify returnWorkersHome
 
 doHarvestPhase :: GameStateT ()
 doHarvestPhase = do
@@ -143,19 +143,15 @@ doBreedPhase = do
 getAllowedActions :: GameState -> ActionSpaces
 getAllowedActions gs =
   let spaces = _currentActionSpaces gs 
-      isAllowed spaces' a = let f = getConditionFunc a
+      isAllowed spaces' a = let f = GS._getConditionFunc a
                                 b = f gs a in if b then a:spaces' else spaces' in
   foldl isAllowed [] spaces
 
--- moreWorkers :: GameState -> Bool
--- moreWorkers gs = foldl hasAvailableWorker False $ _players gs
---   where hasAvailableWorker b p = b || _workers p > 0
-
 availableWorkers :: GameState -> Int
-availableWorkers gs = _workers $ _currentPlayer gs
+availableWorkers = _workers . currentPlayer
 
 getNextRoundCard :: GameState -> ActionSpace
-getNextRoundCard (GameState _ _ _ _ _ futureCards _) = head futureCards
+getNextRoundCard (GameState _ _ _ _ futureCards _) = head futureCards
 
 inputToActionTypeMap :: ActionSpaces -> Map.Map Char ActionSpace
 inputToActionTypeMap [] = Map.empty
@@ -173,4 +169,4 @@ endOfStageRound r = r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14
 
 showSpacesWithResources :: ActionSpaces -> String
 showSpacesWithResources = foldl formatter ""
-  where formatter acc as = acc ++ if hasThings $ Types.GameState.resources as then show as ++ "\n" else ""
+  where formatter acc as = acc ++ if hasThings $  GS._resources as then show as ++ "\n" else ""

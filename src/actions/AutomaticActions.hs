@@ -3,23 +3,22 @@ module Actions.AutomaticActions where
 import Control.Lens
 import Actions.ResourceActions
 import Types.BasicGameTypes
-import Types.GameState
-import Types.PlayerData
-import Types.ResourceTypes
+import Types.GameState as GS
+import Types.PlayerData as PD
 
-getNextAction :: GameAction
+getNextAction :: GameState -> GameState
 getNextAction gs =
   let fas = _futureActionSpaces gs
       cas' = head fas : _currentActionSpaces gs in
   gs { _currentActionSpaces = cas'} { _futureActionSpaces =  tail fas }
 
-drawNextRoundCard :: GameAction
-drawNextRoundCard (GameState r ph cp ps cas (fa:fas) mis) =
-  GameState r ph cp ps (fa:cas) fas mis
+drawNextRoundCard :: GameState -> GameState
+drawNextRoundCard (GameState r ph ps cas (fa:fas) mis) =
+  GameState r ph ps (fa:cas) fas mis
 
-replenish :: GameAction
-replenish (GameState r ph cp ps cas fas mis) =
-  let cas' = map replenishSpace cas in GameState r ph cp ps cas' fas mis
+replenish :: GameState -> GameState
+replenish (GameState r ph ps cas fas mis) =
+  let cas' = map replenishSpace cas in GameState r ph ps cas' fas mis
 
 replenishSpace :: ActionSpace -> ActionSpace
 replenishSpace (ActionSpace at rs allowed runFunc ws) =
@@ -45,10 +44,22 @@ harvestFields p =
     -- harvestField (gs, vs, fields') (_, (cropType, n)) = if n > 0 then 
     --   (grains, veges, fs') = foldl harvestField (0, 0, []) fields
 
-nextPhase :: GameAction
-nextPhase (GameState r ph cp ps ass arcs rrcs) =
+returnWorkersHome :: GameState -> GameState
+returnWorkersHome gs =
+  let cas = _currentActionSpaces gs
+      tally = foldl tallyWorkers [] cas
+      ps = _players gs
+      ps' = map (giveWorkersToPlayer tally) ps in
+  gs { _players = ps' }
+  where tallyWorkers tally' ca = foldl (\tally'' pid -> combineThings (pid, 1) tally'') tally' (GS._playerIds ca)
+        giveWorkersToPlayer tally' p = p { _workers = getAmount (_playerId p) tally' }
+
+nextPhase :: GameState -> GameState
+nextPhase (GameState r ph ps ass arcs rrcs) =
   let endOfStageRound = (r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14)
       nextPhase = if ph == HarvestBreed || (ph == Harvest && not endOfStageRound) then StartRound else succ ph
       r' = if nextPhase == StartRound then r+1 else r in
-  GameState r' nextPhase cp ps ass arcs rrcs
+  GameState r' nextPhase ps ass arcs rrcs
 
+nextRound :: GameState -> GameState
+nextRound gs = gs { _round = _round gs + 1}

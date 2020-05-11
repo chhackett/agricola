@@ -4,9 +4,9 @@ import System.Random
 import System.Random.Shuffle
 import Types.BasicGameTypes
 import Types.PlayerData
-import Types.ResourceTypes
-import Types.GameState
+import Types.GameState as GS
 import Actions.ResourceActions
+import Utils.ListUtils
 
 initGameState :: (RandomGen g) => g -> String -> GameState
 initGameState g name =
@@ -24,7 +24,6 @@ initGameState g name =
                       ([], [], []) in
   GameState 1
             StartRound
-            player
             [player]
             (filter isStartingActionSpace initActionSpaces)
             (initFutureActionCards g3)
@@ -38,7 +37,7 @@ getSevenRandoms g =
   take 7 $ shuffle' es l g
 
 isStartingActionSpace :: ActionSpace -> Bool
-isStartingActionSpace a = actionType a `elem` startingActionTypes
+isStartingActionSpace a = GS._actionType a `elem` startingActionTypes
 startingActionTypes = [BuildRoomAndOrStables .. Fishing]
 
 -- Initialize the actions space cards
@@ -50,10 +49,10 @@ initActionSpaces =
     ActionSpace Plow1Field [] ifNoWorkers noop [],
     ActionSpace PlayOneOccupation [] ifNoWorkers noop [],
     ActionSpace DayLaborer [] ifNoWorkers noop [],
-    ActionSpace TakeWood [] ifNoWorkers (giveResourcesOfTypeToCurrentPlayer Wood TakeWood) [],
-    ActionSpace TakeClay [] ifNoWorkers (giveResourcesOfTypeToCurrentPlayer Clay TakeClay) [],
-    ActionSpace TakeReed [] ifNoWorkers (giveResourcesOfTypeToCurrentPlayer Reed TakeReed) [],
-    ActionSpace Fishing [] ifNoWorkers (giveResourcesOfTypeToCurrentPlayer Food Fishing) [],
+    ActionSpace TakeWood [] ifNoWorkers (giveResourcesAction Wood TakeWood) [],
+    ActionSpace TakeClay [] ifNoWorkers (giveResourcesAction Clay TakeClay) [],
+    ActionSpace TakeReed [] ifNoWorkers (giveResourcesAction Reed TakeReed) [],
+    ActionSpace Fishing [] ifNoWorkers (giveResourcesAction Food Fishing) [],
     ActionSpace SowAndOrBakeBread [] ifNoWorkers noop [],
     ActionSpace TakeSheep [] ifNoWorkers noop [],
     ActionSpace Fences [] ifNoWorkers noop [],
@@ -76,25 +75,25 @@ initFutureActionCards g = map getActionSpace $ snd $ foldl randomize (g, []) act
 
 getActionSpace :: ActionType -> ActionSpace
 getActionSpace at =
-  let maybeA = getActionSpaceFromType at initActionSpaces in
+  let maybeA = getFirstElem GS._actionType at initActionSpaces in
   case maybeA of
     Nothing -> ActionSpace Fishing [] ifNoWorkers noop []
     Just actionSpace -> actionSpace
-  
+
 actionCardStageMap :: [[ActionType]]
 actionCardStageMap =
-  [[SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
+  [ [SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
     [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone],
     [TakeBoar, TakeVege],
     [TakeStone, TakeCattle],
     [PlowAndOrSow, FamilyGrowthWithoutRoom],
-    [AfterRenovationAlsoFences]]
+    [AfterRenovationAlsoFences] ]
 
 ifNoWorkers :: GameState -> ActionSpace -> Bool
-ifNoWorkers gs a = let w = Types.GameState.workers a in null w
+ifNoWorkers gs a = let w = GS._playerIds a in null w
 
 alwaysAllowed :: GameState -> Bool
 alwaysAllowed gs = True
 
 noop :: GameAction
-noop gs = gs
+noop = GameAction "No-op" id Nothing
