@@ -1,11 +1,14 @@
 module InitialSetup where
 
+import qualified Data.Map as M
 import System.Random
 import System.Random.Shuffle
 import Types.BasicGameTypes
 import Types.PlayerData
 import Types.GameState as GS
+import Actions.GameActionFuncs
 import Actions.ResourceActions
+import Actions.BoardActions
 import Utils.ListUtils
 
 initGameState :: (RandomGen g) => g -> String -> GameState
@@ -43,30 +46,30 @@ startingActionTypes = [BuildRoomAndOrStables .. Fishing]
 -- Initialize the actions space cards
 initActionSpaces :: ActionSpaces
 initActionSpaces =
-  [ ActionSpace BuildRoomAndOrStables [] ifNoWorkers noop [],
-    ActionSpace StartingPlayerAndOrMinorImprovement [] ifNoWorkers noop [],
-    ActionSpace Take1Grain [] ifNoWorkers noop [],
-    ActionSpace Plow1Field [] ifNoWorkers noop [],
-    ActionSpace PlayOneOccupation [] ifNoWorkers noop [],
-    ActionSpace DayLaborer [] ifNoWorkers noop [],
-    ActionSpace TakeWood [] ifNoWorkers (giveResourcesAction Wood TakeWood) [],
-    ActionSpace TakeClay [] ifNoWorkers (giveResourcesAction Clay TakeClay) [],
-    ActionSpace TakeReed [] ifNoWorkers (giveResourcesAction Reed TakeReed) [],
-    ActionSpace Fishing [] ifNoWorkers (giveResourcesAction Food Fishing) [],
-    ActionSpace SowAndOrBakeBread [] ifNoWorkers noop [],
-    ActionSpace TakeSheep [] ifNoWorkers noop [],
-    ActionSpace Fences [] ifNoWorkers noop [],
-    ActionSpace MajorOrMinorImprovement [] ifNoWorkers noop [],
-    ActionSpace AfterFamilyGrowthAlsoImprovement [] ifNoWorkers noop [],
-    ActionSpace AfterRenovationAlsoImprovement [] ifNoWorkers noop [],
-    ActionSpace TakeStone [] ifNoWorkers noop [],
-    ActionSpace TakeBoar [] ifNoWorkers noop [],
-    ActionSpace TakeVege [] ifNoWorkers noop [],
-    ActionSpace TakeStone [] ifNoWorkers noop [],
-    ActionSpace TakeCattle [] ifNoWorkers noop [],
-    ActionSpace PlowAndOrSow [] ifNoWorkers noop [],
-    ActionSpace FamilyGrowthWithoutRoom [] ifNoWorkers noop [],
-    ActionSpace AfterRenovationAlsoFences [] ifNoWorkers noop [] ]
+  [ ActionSpace BuildRoomAndOrStables "BuildRoomAndOrStables" [] [],
+    ActionSpace StartingPlayerAndOrMinorImprovement "StartingPlayerAndOrMinorImprovement" [] [],
+    ActionSpace Take1Grain "Take 1 Grain" [] [],
+    ActionSpace Plow1Field "Plow 1 Field" [] [],
+    ActionSpace PlayOneOccupation "Play 1 Occupation. First Costs 1, the rest Cost 2" [] [],
+    ActionSpace DayLaborer "DayLaborer" [] [],
+    ActionSpace TakeWood (getResourcesDescription Wood) [] [],
+    ActionSpace TakeClay (getResourcesDescription Clay) [] [],
+    ActionSpace TakeReed (getResourcesDescription Reed) [] [],
+    ActionSpace Fishing (getResourcesDescription Food) [] [],
+    ActionSpace SowAndOrBakeBread "SowAndOrBakeBread" [] [],
+    ActionSpace TakeSheep (getResourcesDescription Sheep) [] [],
+    ActionSpace Fences "Fences" [] [],
+    ActionSpace MajorOrMinorImprovement "MajorOrMinorImprovement" [] [],
+    ActionSpace AfterFamilyGrowthAlsoImprovement "AfterFamilyGrowthAlsoImprovement" [] [],
+    ActionSpace AfterRenovationAlsoImprovement "AfterRenovationAlsoImprovement" [] [],
+    ActionSpace TakeStone (getResourcesDescription Stone) [] [],
+    ActionSpace TakeBoar (getResourcesDescription Boar) [] [],
+    ActionSpace TakeVege "Take 1 Vege" [] [],
+    ActionSpace TakeStone (getResourcesDescription Stone) [] [],
+    ActionSpace TakeCattle (getResourcesDescription Cattle) [] [],
+    ActionSpace PlowAndOrSow "PlowAndOrSow" [] [],
+    ActionSpace FamilyGrowthWithoutRoom "FamilyGrowthWithoutRoom" [] [],
+    ActionSpace AfterRenovationAlsoFences "AfterRenovationAlsoFences" [] [] ]
 
 -- initialize future action cards list with random generator
 initFutureActionCards :: (RandomGen g) => g -> ActionSpaces
@@ -77,7 +80,7 @@ getActionSpace :: ActionType -> ActionSpace
 getActionSpace at =
   let maybeA = getFirstElem GS._actionType at initActionSpaces in
   case maybeA of
-    Nothing -> ActionSpace Fishing [] ifNoWorkers noop []
+    Nothing -> ActionSpace Fishing (getResourcesDescription Food) [] []   -- Fix this!
     Just actionSpace -> actionSpace
 
 actionCardStageMap :: [[ActionType]]
@@ -89,11 +92,35 @@ actionCardStageMap =
     [PlowAndOrSow, FamilyGrowthWithoutRoom],
     [AfterRenovationAlsoFences] ]
 
-ifNoWorkers :: GameState -> ActionSpace -> Bool
-ifNoWorkers gs a = let w = GS._playerIds a in null w
+actionTypeToActionFuncList :: [(ActionType, GameStateT ())]
+actionTypeToActionFuncList =
+  [ (BuildRoomAndOrStables, noIO)
+  , (StartingPlayerAndOrMinorImprovement, noIO)
+  , (Take1Grain, noIO)
+  , (Plow1Field, noIO)
+  , (PlayOneOccupation, noIO)
+  , (DayLaborer, noIO)
+  , (TakeWood, giveResourcesAction Wood TakeWood)
+  , (TakeClay, giveResourcesAction Clay TakeClay)
+  , (TakeReed, giveResourcesAction Reed TakeReed)
+  , (Fishing, giveResourcesAction Food Fishing)
+  , (SowAndOrBakeBread, noIO)
+  , (TakeSheep, noIO)
+  , (Fences, runFencesAction)
+  , (MajorOrMinorImprovement, noIO)
+  , (AfterFamilyGrowthAlsoImprovement, noIO)
+  , (AfterRenovationAlsoImprovement, noIO)
+  , (TakeStone, noIO)
+  , (TakeBoar, noIO)
+  , (TakeVege, noIO)
+  , (TakeStone, noIO)
+  , (TakeCattle, noIO)
+  , (PlowAndOrSow, noIO)
+  , (FamilyGrowthWithoutRoom, noIO) 
+  , (AfterRenovationAlsoFences, noIO)
+  ]
 
-alwaysAllowed :: GameState -> Bool
-alwaysAllowed gs = True
+actionTypeToGameActionMap :: GameActionMap
+actionTypeToGameActionMap = foldl buildGameAction M.empty actionTypeToActionFuncList
+  where buildGameAction m x = M.insert (fst x) (GameAction (ifNoWorkers (fst x)) (snd x)) m
 
-noop :: GameAction
-noop = GameAction "No-op" id Nothing

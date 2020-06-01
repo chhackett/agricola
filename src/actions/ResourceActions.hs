@@ -1,20 +1,31 @@
 module Actions.ResourceActions where
 
+import System.IO
+import Control.Monad
+import Control.Monad.State
+import Actions.GameActionFuncs
 import Control.Lens
 import Types.GameState as GS
 import Types.BasicGameTypes
 import Types.PlayerData as PD
 import Utils.ListUtils
+import Utils.Selection
 
 addWorkerToPlayer :: Player -> Player
 addWorkerToPlayer = over workers (+1)
 
-giveResourcesAction :: ResourceType -> ActionType -> GameAction
-giveResourcesAction rs at =
-  GameAction ("Take all resources of type [" ++ show rs ++ "]")
-             (giveResourcesOfTypeToCurrentPlayer rs at)
-             Nothing
+getResourcesDescription :: ResourceType -> String
+getResourcesDescription rs = "Take all resources of type [" ++ show rs ++ "]"
 
+giveResourcesAction :: ResourceType -> ActionType -> GameStateT ()
+giveResourcesAction rt at = do
+  modify $ giveResourcesOfTypeToCurrentPlayer rt at
+  return ()
+
+--liftActionToIO :: (GameState -> GameState) -> GameState -> IO GameState
+--liftActionToIO f gs = lift . f gs
+
+-- Take all resources of the specified resource type from the action space specified by the action type and give them to the current player
 giveResourcesOfTypeToCurrentPlayer :: ResourceType -> ActionType -> GameState -> GameState
 giveResourcesOfTypeToCurrentPlayer rt at gs =
   let cas = GS._currentActionSpaces gs

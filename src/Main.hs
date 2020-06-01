@@ -3,13 +3,14 @@ module Main where
 import System.IO
 import Control.Monad
 import Control.Monad.State
-import qualified Data.Map as Map
+import qualified Data.Map as M
 import System.Random
 import Types.GameState as GS
 import Types.PlayerData as PD
 import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.AutomaticActions
+import Utils.Selection
 import InitialSetup
 import Scoring
 
@@ -91,29 +92,33 @@ doWorkPhase = do
   lift $ putStrLn "Work phase:"
   gs <- get
   let actions = getAllowedActions gs
-      actionMap = inputToActionTypeMap actions
+      options = getActionOptions actions
       n = availableWorkers gs
   lift $ putStrLn $ "You have " ++ show n ++ " workers to place"
   lift $ putStrLn $ "Current gamestate:\n" ++ show gs
-  nextAction <- lift $ getNextSelection actionMap
+  nextAction <- lift $ getNextSelection options
   lift $ putStrLn $ "You selected: " ++ show nextAction
-  modify $ putCurrentPlayerWorkerOnActionSpace nextAction
-  modify $ GS._run $ GS._action nextAction
+  let maybeGA = M.lookup (GS._actionType nextAction) actionTypeToGameActionMap
+  executeAction maybeGA nextAction
   n' <- gets availableWorkers
   lift $ putStrLn $ "There are now " ++ show n' ++ " left."
   when (n' > 0) doWorkPhase
 
-getNextSelection :: Map.Map Char ActionSpace -> IO ActionSpace
-getNextSelection actionMap = do
-  putStr $ "Select from the following actions:\n" ++ showOptions actionMap ++ "\n\nEnter choice: "
-  selection <- getLine
-  if length selection /= 1
-  then do putStrLn "Invalid selection. Please select an option and press <return>"
-          getNextSelection actionMap
-  else case Map.lookup (head selection) actionMap of
-          Nothing     -> do putStrLn "Invalid selection. Please select an option and press <return>"
-                            getNextSelection actionMap
-          Just action -> return action
+executeAction :: Maybe GameAction -> ActionSpace -> GameStateT ()
+executeAction maybeGA as =
+  case maybeGA of
+    Nothing -> do lift $ putStrLn "Invalid selection. Please select an option"
+                  doWorkPhase
+    Just ga -> do modify $ putCurrentPlayerWorkerOnActionSpace as
+                  gs' <- get
+                  GS._run ga
+
+getAllowedActions :: GameState -> ActionSpaces
+getAllowedActions gs = filter getIsAllowed (_currentActionSpaces gs)
+  where getIsAllowed a = maybe False (`GS._isAllowed` gs) (M.lookup (GS._actionType a) actionTypeToGameActionMap)
+
+getActionOptions :: ActionSpaces -> Options ActionSpace
+getActionOptions = map (\a -> (_description a, a))
 
 doReturnHomePhase :: GameStateT ()
 doReturnHomePhase = modify returnWorkersHome
@@ -140,12 +145,13 @@ doBreedPhase = do
   lift $ putStrLn "Harvest Time!"
   return ()
 
-getAllowedActions :: GameState -> ActionSpaces
-getAllowedActions gs =
-  let spaces = _currentActionSpaces gs 
-      isAllowed spaces' a = let f = GS._getConditionFunc a
-                                b = f gs a in if b then a:spaces' else spaces' in
-  foldl isAllowed [] spaces
+-- getActionSpaceOptions :: GameState -> M.Map Option ActionSpace
+-- getActionSpaceOptions gs =
+--   let actions = getAllowedActions gs in
+--   fst $ foldl next (M.empty, 'a') actions
+--   where next (result, c) a =
+--           let c' = if c == 'z' then 'A' else succ c in
+--           (M.insert (c, show a) a result, c')
 
 availableWorkers :: GameState -> Int
 availableWorkers = _workers . currentPlayer
@@ -153,15 +159,8 @@ availableWorkers = _workers . currentPlayer
 getNextRoundCard :: GameState -> ActionSpace
 getNextRoundCard (GameState _ _ _ _ futureCards _) = head futureCards
 
-inputToActionTypeMap :: ActionSpaces -> Map.Map Char ActionSpace
-inputToActionTypeMap [] = Map.empty
-inputToActionTypeMap as = fst $ foldl next (Map.empty, 'a') as
-  where next (result, c) a =
-          let c' = if c == 'z' then 'A' else succ c in
-          (Map.insert c a result, c')
-
-showOptions :: Map.Map Char ActionSpace -> String
-showOptions options = let optionsList = Map.toList options in foldl builder "" optionsList
+showOptions :: M.Map Char ActionSpace -> String
+showOptions options = let optionsList = M.toList options in foldl builder "" optionsList
   where builder result option = result ++ "\n\t(" ++ [fst option] ++ ") " ++ show (snd option)
 
 endOfStageRound :: Round -> Bool

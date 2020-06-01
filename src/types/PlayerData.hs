@@ -21,13 +21,14 @@ import Types.BasicGameTypes
 --   Food
 
 type Space = (Int, Int)
+type Spaces = [Space]
 type PlayerId = Int
 type Players = [Player]
 
 data Board = Board
-  { _houses :: ([Space], ResourceType)
-  , _fields :: [(Space, ResourceType)]
-  , _pastures :: [([Space], Resources)]
+  { _houses :: (Spaces, ResourceType)
+  , _fields :: [(Space, Resources)]
+  , _pastures :: [(Spaces, Resources)]
   , _stables :: [(Space, Resources)] } deriving (Show, Read)
 
 data Player = Player
