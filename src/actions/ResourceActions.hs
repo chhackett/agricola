@@ -34,14 +34,14 @@ giveResourcesOfTypeToCurrentPlayer rt at gs =
     Nothing -> gs
     Just actionSpace ->
       let cp = GS.currentPlayer gs
-          rs = GS._resources actionSpace
+          rs = GS._actionSpaceResources actionSpace
           amount = getAmount rt rs in
       if amount > 0
       then
         let cp' = giveResourceToPlayer (rt, amount) cp
             ps' = replaceElem PD._playerId cp' (GS._players gs)
             rs' = removeResourceType rt rs
-            actionSpace' = actionSpace { GS._resources = rs' }
+            actionSpace' = actionSpace { GS._actionSpaceResources = rs' }
             cas' = replaceElem GS._actionType actionSpace' cas in
         gs { GS._players = ps' } { GS._currentActionSpaces = cas' }
       else gs
@@ -74,19 +74,3 @@ giveResourceToPlayer r (Player id n b w rs hcs acs) =
 
 removeResourceType :: ResourceType -> Resources -> Resources
 removeResourceType rt = filter (\(rt', _) -> rt /= rt')
-
-combineThings :: (Eq t) => (t, Int) -> [(t, Int)] -> [(t, Int)]
-combineThings (t, n) things = if hasType t things then map addThings things else (t,n):things
-  where addThings (t', n') = if t == t' then (t', n + n') else (t', n')
-
-hasType :: (Eq t) => t -> [(t, Int)] -> Bool
-hasType t = foldl hasType' False
-  where hasType' b (t',_) = b || (t' == t)
-
-hasThings :: [(t, Int)] -> Bool
-hasThings = foldl hasThing False
-  where hasThing b a = b || snd a > 0
-
-getAmount :: (Eq a) => a -> [(a, Int)] -> Int
-getAmount rt = foldl get 0
-  where get acc (rt', n) = if rt == rt' then n else acc

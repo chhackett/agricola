@@ -20,14 +20,23 @@ import Types.BasicGameTypes
 --   Crop types: grain or veges
 --   Food
 
+-- Represents spaces on the board ( 0 <= x <= 4, 0 <= y <= 2 )
 type Space = (Int, Int)
 type Spaces = [Space]
+
+-- Represents the vertices of the board grid ( 0 <= x <= 5, 0 <= y <= 3 )
+type Node = (Int, Int)
+type Nodes = [Node]
+
+type Edge = (Node, Node)
+type Edges = [Edge]
+
 type PlayerId = Int
 type Players = [Player]
 
 data Board = Board
   { _houses :: (Spaces, ResourceType)
-  , _fields :: [(Space, Resources)]
+  , _fields :: [(Space, Resource)]
   , _pastures :: [(Spaces, Resources)]
   , _stables :: [(Space, Resources)] } deriving (Show, Read)
 
@@ -40,6 +49,17 @@ data Player = Player
   , _hand :: (OccupationTypes, MinorImprovementTypes)
   , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes) } deriving (Show, Read)
 
+allSpaces :: Spaces
+allSpaces = [(x, y) | x <- [0 .. 4], y <- [0 .. 2]]
+
+allEdges :: Edges
+allEdges = allHorizontalEdges ++ allVerticalEdges
+
+allHorizontalEdges :: Edges
+allHorizontalEdges = [((x, y), (x + 1, y)) | x <- [0 .. 4], y <- [0 .. 3]]
+
+allVerticalEdges :: Edges
+allVerticalEdges = [((x, y), (x, y + 1)) | x <- [0 .. 5], y <- [0 .. 2]]
+
 $(makeLenses ''Board)
 $(makeLenses ''Player)
-

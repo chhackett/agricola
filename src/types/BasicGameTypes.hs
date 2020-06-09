@@ -7,7 +7,7 @@ numStages = 6 :: Stage
 
 type Workers = Int
 
-data ResourceType = Food | Wood | Clay | Reed | Stone | Grain | Veges | Sheep | Boar | Cattle
+data ResourceType = None | Food | Wood | Clay | Reed | Stone | Grain | Veges | Sheep | Boar | Cattle
   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
 data ResourceKind = Crop | Animal | Building

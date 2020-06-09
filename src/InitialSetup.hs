@@ -31,6 +31,7 @@ initGameState g name =
             (filter isStartingActionSpace initActionSpaces)
             (initFutureActionCards g3)
             []
+            actionTypeToGameActionMap
 
 -- Want to draw seven random cards, not repeating any
 getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]
@@ -62,10 +63,10 @@ initActionSpaces =
     ActionSpace MajorOrMinorImprovement "MajorOrMinorImprovement" [] [],
     ActionSpace AfterFamilyGrowthAlsoImprovement "AfterFamilyGrowthAlsoImprovement" [] [],
     ActionSpace AfterRenovationAlsoImprovement "AfterRenovationAlsoImprovement" [] [],
-    ActionSpace TakeStone (getResourcesDescription Stone) [] [],
     ActionSpace TakeBoar (getResourcesDescription Boar) [] [],
     ActionSpace TakeVege "Take 1 Vege" [] [],
-    ActionSpace TakeStone (getResourcesDescription Stone) [] [],
+    ActionSpace TakeStone1 (getResourcesDescription Stone) [] [],
+    ActionSpace TakeStone2 (getResourcesDescription Stone) [] [],
     ActionSpace TakeCattle (getResourcesDescription Cattle) [] [],
     ActionSpace PlowAndOrSow "PlowAndOrSow" [] [],
     ActionSpace FamilyGrowthWithoutRoom "FamilyGrowthWithoutRoom" [] [],
@@ -86,41 +87,41 @@ getActionSpace at =
 actionCardStageMap :: [[ActionType]]
 actionCardStageMap =
   [ [SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
-    [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone],
+    [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone1],
     [TakeBoar, TakeVege],
-    [TakeStone, TakeCattle],
+    [TakeStone2, TakeCattle],
     [PlowAndOrSow, FamilyGrowthWithoutRoom],
     [AfterRenovationAlsoFences] ]
 
-actionTypeToActionFuncList :: [(ActionType, GameStateT ())]
-actionTypeToActionFuncList =
-  [ (BuildRoomAndOrStables, noIO)
+actionSpaceRunList :: [(ActionType, GameStateT ())]
+actionSpaceRunList =
+  [ (BuildRoomAndOrStables,               runBuildRoomAndOrStables)
   , (StartingPlayerAndOrMinorImprovement, noIO)
-  , (Take1Grain, noIO)
-  , (Plow1Field, noIO)
-  , (PlayOneOccupation, noIO)
-  , (DayLaborer, noIO)
-  , (TakeWood, giveResourcesAction Wood TakeWood)
-  , (TakeClay, giveResourcesAction Clay TakeClay)
-  , (TakeReed, giveResourcesAction Reed TakeReed)
-  , (Fishing, giveResourcesAction Food Fishing)
-  , (SowAndOrBakeBread, noIO)
-  , (TakeSheep, noIO)
-  , (Fences, runFencesAction)
-  , (MajorOrMinorImprovement, noIO)
-  , (AfterFamilyGrowthAlsoImprovement, noIO)
-  , (AfterRenovationAlsoImprovement, noIO)
-  , (TakeStone, noIO)
-  , (TakeBoar, noIO)
-  , (TakeVege, noIO)
-  , (TakeStone, noIO)
-  , (TakeCattle, noIO)
-  , (PlowAndOrSow, noIO)
-  , (FamilyGrowthWithoutRoom, noIO) 
-  , (AfterRenovationAlsoFences, noIO)
+  , (Take1Grain,                          noIO)
+  , (Plow1Field,                          runPlowFieldAction)
+  , (PlayOneOccupation,                   noIO)
+  , (DayLaborer,                          noIO)
+  , (TakeWood,                            giveResourcesAction Wood TakeWood)
+  , (TakeClay,                            giveResourcesAction Clay TakeClay)
+  , (TakeReed,                            giveResourcesAction Reed TakeReed)
+  , (Fishing,                             giveResourcesAction Food Fishing)
+  , (SowAndOrBakeBread,                   runSowAndOrBakeBreadAction)
+  , (TakeSheep,                           giveResourcesAction Sheep TakeSheep)
+  , (Fences,                              runFencesAction)
+  , (MajorOrMinorImprovement,             noIO)
+  , (AfterFamilyGrowthAlsoImprovement,    noIO)
+  , (AfterRenovationAlsoImprovement,      noIO)
+  , (TakeStone1,                          giveResourcesAction Stone TakeStone1)
+  , (TakeStone2,                          giveResourcesAction Stone TakeStone2)
+  , (TakeBoar,                            giveResourcesAction Boar TakeBoar)
+  , (TakeVege,                            noIO)
+  , (TakeCattle,                          giveResourcesAction Cattle TakeCattle)
+  , (PlowAndOrSow,                        noIO)
+  , (FamilyGrowthWithoutRoom,             noIO) 
+  , (AfterRenovationAlsoFences,           noIO)
   ]
 
 actionTypeToGameActionMap :: GameActionMap
-actionTypeToGameActionMap = foldl buildGameAction M.empty actionTypeToActionFuncList
+actionTypeToGameActionMap = foldl buildGameAction M.empty actionSpaceRunList
   where buildGameAction m x = M.insert (fst x) (GameAction (ifNoWorkers (fst x)) (snd x)) m
 

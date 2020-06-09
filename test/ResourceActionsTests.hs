@@ -1,36 +1,37 @@
 module ResourceActionsTests where
 
 import Test.Tasty
--- import Test.Tasty.SmallCheck as SC
 import Test.Tasty.HUnit
 
-import Actions.ResourceActions
-import Types.ResourceTypes
+import Types.BasicGameTypes
 import Types.PlayerData
-import Types.CardData
+import Actions.ResourceActions
 
-resourceActionTests = testGroup "ResourceActionTests" [simpleRATests]
+resourceActionsTests = testGroup "ResourceActionTests" [simpleRATests]
 
 simpleRATests = testGroup "Simple Tests" [foodTest, materialTest]
 
-player = Player board
+player = Player 0
+                "Bob"
+                board
                 2   -- workers
-                0   -- money
-                0   -- food
-                [(Grain,1),(Veges,0)]  -- crops
-                [(Wood,7),(Stone,2)]  -- materials
-                ([ClayMixer, HedgeKeeper],
-                 [AnimalPen, MarketStall])
-                ([], [])
+                [(Food,3),(Grain,1),(Veges,0),(Wood,7),(Stone,2)]  -- resources
+                ([ClayMixer, HedgeKeeper], [AnimalPen, MarketStall])
+                ([], [], [])
   where board = Board ([(0,0),(0,1)], Wood) [] [] []
 
 foodTest = testCase "Food Test" $
-  let Player _ _ _ f _ _ _ _ = giveFoodToPlayer 5 player in
-      f @?= 5
+  let Player _ _ _ _ rs _ _ = giveResourceToPlayer (Food,5) player
+      maybeFood = getResourceAmount rs Food in
+  maybeFood @?= Just 8
 
 materialTest = testCase "Giving Wood to player test" $
-  let Player _ _ _ _ _ ms _ _ = giveMaterialToPlayer (Wood,3) player
+  let Player _ _ _ _ ms _ _ = giveResourceToPlayer (Wood,3) player
       ms' = filter (\m -> fst m == Wood) ms in
-      do length ms' @?= 1
-         let (_, n) = head ms'
-         n @?= 10
+  do length ms' @?= 1
+     let (_, n) = head ms'
+     n @?= 10
+
+getResourceAmount :: Resources -> ResourceType -> Maybe Int
+getResourceAmount rs rt = foldl get Nothing rs
+  where get result (rt', n) = if rt' == rt then Just n else result

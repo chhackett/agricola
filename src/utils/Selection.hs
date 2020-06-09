@@ -1,5 +1,6 @@
 module Utils.Selection
 ( getNextSelection,
+  yesNoOptions,
   Option,
   Options ) where
 
@@ -30,7 +31,10 @@ getSelect mos = do
                         Just option -> return (snd option)
 
 showOptions :: OptionMap a -> String
-showOptions m = foldl builder "" (M.assocs m)
+showOptions m = 
+  if M.null m
+  then error "No options available"
+  else foldl builder "" (M.assocs m)
   where builder result (c, o) = result ++ "\n\t(" ++ [c] ++ ") " ++ show (fst o)
 
 displayOptions :: Options a ->  OptionMap a
@@ -38,3 +42,6 @@ displayOptions [] = M.empty
 displayOptions os = fst $ foldl next (M.empty, 'a') os
   where next (result, c) o = let c' = if c == 'z' then 'A' else succ c in
          (M.insert c o result, c')
+
+yesNoOptions :: Options Bool
+yesNoOptions = [("Yes", True), ("No", False)]

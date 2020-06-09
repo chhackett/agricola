@@ -5,20 +5,18 @@ import Actions.ResourceActions
 import Types.BasicGameTypes
 import Types.GameState as GS
 import Types.PlayerData as PD
+import Utils.ListUtils
 
 drawNextRoundCard :: GameState -> GameState
 drawNextRoundCard gs =
-  let fas = _futureActionSpaces gs
-      cas' = head fas : _currentActionSpaces gs in
-  gs { _currentActionSpaces = cas'} { _futureActionSpaces =  tail fas }
-
--- drawNextRoundCard :: GameState -> GameState
--- drawNextRoundCard (GameState r ph ps cas (fa:fas) mis) =
---   GameState r ph ps (fa:cas) fas mis
+  let (fa:fas') = gs ^. futureActionSpaces
+      cas' = fa : _currentActionSpaces gs in
+  gs { _currentActionSpaces = cas'} { _futureActionSpaces = fas' }
 
 replenish :: GameState -> GameState
-replenish (GameState r ph ps cas fas mis) =
-  let cas' = map replenishSpace cas in GameState r ph ps cas' fas mis
+replenish gs =
+  let cas' = map replenishSpace (_currentActionSpaces gs) in
+  gs { _currentActionSpaces = cas' }
 
 replenishSpace :: ActionSpace -> ActionSpace
 replenishSpace (ActionSpace at desc rs pids) =
@@ -33,16 +31,25 @@ replenishMap at
   | at == TakeReed = (Reed, 1)
   | at == Fishing = (Food, 1)
   | at == TakeSheep = (Sheep, 1)
-  | at == TakeStone = (Stone, 1)
+  | at == TakeStone1 = (Stone, 1)
+  | at == TakeStone2 = (Stone, 1)
   | at == TakeBoar = (Boar, 1)
   | at == TakeCattle = (Cattle, 1)
   | otherwise = (Wood, 0)
 
 harvestFields :: Player -> Player
 harvestFields p =
-  let fields = _fields $ _board p in p
-    -- harvestField (gs, vs, fields') (_, (cropType, n)) = if n > 0 then 
-    --   (grains, veges, fs') = foldl harvestField (0, 0, []) fields
+  let fields = _fields $ _board p                 -- p ^. PD.board . PD.fields
+      (gs, vs, fields') = foldl harvestField (0, 0, []) fields
+      board' = (_board p) { _fields = fields' } in
+  p { _board = board' }
+  where harvestField (gs', vs', fields'') (s, (rt, n)) =
+          if n > 0 
+            then case rt of
+              Grain -> (gs' + 1, vs', (s, (rt, n - 1)) : fields'')
+              Veges -> (gs', vs' + 1, (s, (rt, n - 1)) : fields'')
+              _ -> (gs', vs', (s, (rt, n)) : fields'')
+            else (gs', vs', (s, (rt, n)) : fields'')
 
 returnWorkersHome :: GameState -> GameState
 returnWorkersHome gs =

@@ -11,6 +11,7 @@ import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.AutomaticActions
 import Utils.Selection
+import Utils.ListUtils
 import InitialSetup
 import Scoring
 
@@ -70,7 +71,7 @@ doPhases = do
   doReplenishPhase
   doWorkPhase
   doReturnHomePhase
-  when (endOfStageRound currentRound) doHarvestPhase
+  when (endOfStage currentRound) doHarvestPhase
 
 doStartRoundPhase :: GameStateT ()
 doStartRoundPhase = do
@@ -157,15 +158,15 @@ availableWorkers :: GameState -> Int
 availableWorkers = _workers . currentPlayer
 
 getNextRoundCard :: GameState -> ActionSpace
-getNextRoundCard (GameState _ _ _ _ futureCards _) = head futureCards
+getNextRoundCard = head . _futureActionSpaces
 
 showOptions :: M.Map Char ActionSpace -> String
 showOptions options = let optionsList = M.toList options in foldl builder "" optionsList
   where builder result option = result ++ "\n\t(" ++ [fst option] ++ ") " ++ show (snd option)
 
-endOfStageRound :: Round -> Bool
-endOfStageRound r = r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14
+endOfStage :: Round -> Bool
+endOfStage r = r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14
 
 showSpacesWithResources :: ActionSpaces -> String
 showSpacesWithResources = foldl formatter ""
-  where formatter acc as = acc ++ if hasThings $  GS._resources as then show as ++ "\n" else ""
+  where formatter acc as = acc ++ if hasThings $  GS._actionSpaceResources as then show as ++ "\n" else ""
