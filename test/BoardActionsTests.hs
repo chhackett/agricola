@@ -10,7 +10,12 @@ import Actions.BoardActions
 
 boardActionsTests = testGroup "BoardActionsTests" [fenceTests]
 
-fenceTests = testGroup "Fencing Action Tests" [isFenceAllowedTests, calculateBoundaryEdgesTests, calculateDisconnectedRegionsTests]
+fenceTests = testGroup "Fencing Action Tests" 
+  [ isFenceAllowedTests,
+    calculateBoundaryEdgesTests,
+    calculateDisconnectedRegionsTests,
+    isRegionFencedInTests,
+    calculatePasturesTest]
 
 emptyBoard = Board ([(0,0),(0,1)], Wood) [] [] []
 
@@ -41,15 +46,57 @@ calculateBoundaryEdgesTests = testGroup "Calculate boundary edges tests"
   ]
 
 calculateDisconnectedRegionsTests = testGroup "Calculate disconnected regions tests"
-  [ testCase "Single space region test" $
-      let edges = [((1,0),(1,1)),((1,1),(1,2))]
-          result = calculateDisconnectedRegions edges 
+  [ testCase "No fences test" $
+      let edges = []
+          result = calculateDisconnectedRegions edges in
+          do length result @?= 1
+             assertBool ("Expected all spaces but got " ++ show result) $ 15 == length (head result)
+  , testCase "Two regions test" $
+      let edges = [((1,0),(1,1)),((1,1),(1,2)),((1,2),(1,3))]
+          result = calculateDisconnectedRegions edges
           sortedResult = sortOn length result in
-        do length result @?= 2
-           assertBool "Expected space (1,1)" $ [(1,1)] == head sortedResult
-           --assertBool "Expected all spaces other than (1,1)" $ 17 == (length $ )
+      do  length result @?= 2
+          assertBool ("Expected 3 spaces but got " ++ show result) $ 3 == length (head sortedResult)
+  , testCase "Single region partially fenced test" $
+      let edges = [((1,0),(1,1)),((1,1),(1,2))]
+          result = calculateDisconnectedRegions edges
+          sortedResult = sortOn length result in
+      do  length result @?= 1
+          assertBool ("Expected all spaces but got " ++ show result) $ 15 == length (head sortedResult)
   ]
 
+isRegionFencedInTests = testGroup "Compute whether given region is completely 'fenced in'"
+  [ testCase "No fences test" $
+      let edges = []
+          spaces = [(1,1)]
+          result = isRegionFencedIn edges spaces in
+      result @?= False
+  , testCase "Not completely fenced in test" $
+      let edges =  [((1,1),(2,1)),((2,1),(2,2)),((1,2),(2,2))]
+          spaces = [(1,1)]
+          result = isRegionFencedIn edges spaces in
+      result @?= False
+  , testCase "Completely fenced in test" $
+      let edges =  [((1,1),(2,1)),((2,1),(2,2)),((1,2),(2,2)),((1,1),(1,2))]
+          spaces = [(1,1)]
+          result = isRegionFencedIn edges spaces in
+      result @?= True
+  ]
+
+calculatePasturesTest = testGroup "Compute whether given edges define pastures"
+  [ testCase "Simple pasture test" $
+      let edges =  [((1,1),(2,1)),((2,1),(2,2)),((1,2),(2,2)),((1,1),(1,2))]
+          result = calculatePastures emptyBoard edges in
+      result @?= [[(1,1)]]
+  , testCase "Simple pasture test" $
+    let edges =  [((4,2),(4,3))]
+        pastures = [ ( [ (3,2),(4,2) ], [] ) ]
+        board = Board ([(0,0),(0,1)], Wood) [] pastures []
+        result = calculatePastures board edges in
+    do length result @?= 2
+       assertBool "Space (3,2) was not part of the result" $ [(3,2)] `elem` result
+       assertBool "Space (4,2) was not part of the result" $ [(4,2)] `elem` result
+  ]
 -- materialTest = testCase "Giving Wood to player test" $
 --   let Player _ _ _ _ _ ms _ _ = giveMaterialToPlayer (Wood,3) player
 --       ms' = filter (\m -> fst m == Wood) ms in

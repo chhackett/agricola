@@ -50,7 +50,7 @@ data Player = Player
   , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes) } deriving (Show, Read)
 
 allSpaces :: Spaces
-allSpaces = [(x, y) | x <- [0 .. 4], y <- [0 .. 2]]
+allSpaces = [(x, y) | y <- [0 .. 2], x <- [0 .. 4]]
 
 allEdges :: Edges
 allEdges = allHorizontalEdges ++ allVerticalEdges

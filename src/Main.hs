@@ -102,7 +102,7 @@ doWorkPhase = do
   let maybeGA = M.lookup (GS._actionType nextAction) actionTypeToGameActionMap
   executeAction maybeGA nextAction
   n' <- gets availableWorkers
-  lift $ putStrLn $ "There are now " ++ show n' ++ " left."
+  lift $ putStrLn $ "You have " ++ show n' ++ " worker(s) left."
   when (n' > 0) doWorkPhase
 
 executeAction :: Maybe GameAction -> ActionSpace -> GameStateT ()

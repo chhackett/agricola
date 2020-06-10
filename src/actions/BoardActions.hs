@@ -2,6 +2,7 @@
 
 module Actions.BoardActions where
 
+import qualified Data.Set as Set
 import Data.List
 
 import Types.BasicGameTypes
@@ -140,13 +141,17 @@ runFencesAction = do
 -- Given the board compute where the user selects to put the next fence piece
 getFenceChoices :: (Board, Int, Edges) -> IO Edges
 getFenceChoices (b, n, es) = do
-    putStrLn "Select where to place your next fence"
+    putStrLn ("You can place [" ++ show n ++ "] more fences. Select where to place your next fence")
     e <- getNextSelection $ options $ availableFenceLocations b
-    putStrLn "Do you want to place another fence?"
-    yes <- getNextSelection yesNoOptions
-    if yes then getFenceChoices (b, n, e : es)
-           else return es
-    where options = map (\e' -> ("Location: " ++ show e', e'))
+    if n > 0
+      then do
+        putStrLn "Do you want to place another fence?"
+        yes <- getNextSelection yesNoOptions
+        if yes then getFenceChoices (b, n - 1, es)
+               else return es
+      else return es
+    where
+      options = map (\e' -> ("Location: " ++ show e', e'))
 
 availableFenceLocations :: Board -> Edges
 availableFenceLocations b = [ e | e <- allEdges, isFenceAllowed e b]
@@ -187,40 +192,53 @@ calculatePastures :: Board -> Edges -> [Spaces]
 calculatePastures b es =
   let houseAndFieldSpaces = allHousesAndFields b
       validSpaces = difference houseAndFieldSpaces PD.allSpaces
-      pastureEdges = calculateBoundaryEdges (allPastureSpaces b)
-      regions = calculateDisconnectedRegions (pastureEdges ++ es) in
-  filter (isRegionFencedIn es) regions
+      allEdges = calculateBoundaryEdges (allPastureSpaces b) ++ es
+      regions = calculateDisconnectedRegions allEdges in
+  filter (isRegionFencedIn allEdges) regions
 
 -- Given the set of fences, calculate regions that are completely separated by fences
 calculateDisconnectedRegions :: Edges -> [Spaces]
 calculateDisconnectedRegions edges =
-  foldl buildRegions [] PD.allSpaces
-  where
-    -- For each space, if the current space is not part of a region, make a new region.
-    -- If current space is NOT on right edge of the board, check space to right.
-    --    If spaces are connected, add the space to right to current region. Else, do nothing.
-    -- Repeat for space above current space.
-    buildRegions :: [Spaces] -> Space -> [Spaces]
-    buildRegions regions s =
-      if s `elem` concat regions
-        then map (\region -> addConnectedSpaces edges region s) regions
-        else addConnectedSpaces edges [s] s : regions
+  let regions = foldl (buildRegions edges) [] PD.allSpaces
+      mergedRegions = mergeRegions regions in
+  map Set.elems mergedRegions
 
-addConnectedSpaces :: Edges -> Spaces -> Space -> Spaces
-addConnectedSpaces edges region s =
-  if s `elem` region
-    then region ++ getConnectedRightAndTopSpaces edges s
-    else region
+-- For each space, if the current space is not part of a region, make a new region.
+-- If current space is NOT on right edge of the board, check space to right.
+--    If spaces are connected, add the space to right to current region. Else, do nothing.
+-- Repeat for space above current space.
+buildRegions :: Edges -> [Set.Set Space] -> Space -> [Set.Set Space]
+buildRegions es regions s =
+  let mIdx = findIndex (s `Set.member`) regions in
+  case mIdx of
+    Nothing -> addConnectedSpaces es (Set.singleton s) s : regions
+    Just i  -> take i regions ++ addConnectedSpaces es (regions !! i) s : drop (i + 1) regions
 
-getConnectedRightAndTopSpaces :: Edges -> Space -> Spaces
+addConnectedSpaces :: Edges -> Set.Set Space -> Space -> Set.Set Space
+addConnectedSpaces es region s = Set.union region $ getConnectedRightAndTopSpaces es s
+
+getConnectedRightAndTopSpaces :: Edges -> Space -> Set.Set Space
 getConnectedRightAndTopSpaces edges s =
-  let connectedSpaces = map snd (filter (\t -> fst t `elem` edges) [(getRightEdge s, getRightHandSpace s), (getTopEdge s, getTopSpace s)]) in
-  filter isValidSpace connectedSpaces
+  let connectedSpaces = map snd (filter (\t -> fst t `notElem` edges) [(getRightEdge s, getRightHandSpace s), (getTopEdge s, getTopSpace s)]) in
+  Set.fromList $ filter isValidSpace connectedSpaces
+
+-- For each region, if it has any element in common with another region, combine the two regions. Continue checking each region with all other regions.
+mergeRegions :: [Set.Set Space] -> [Set.Set Space]
+mergeRegions [r] = [r]
+mergeRegions (r:rs) = let (r', rs') = mergeRegion r rs in r' : mergeRegions rs'
+mergeRegions [] = []
+
+mergeRegion :: Set.Set Space -> [Set.Set Space] -> (Set.Set Space, [Set.Set Space])
+mergeRegion r = foldl innerMerge (r,[])
+  where
+  innerMerge (r', rs') r'' =
+    if Set.disjoint r' r'' then (r', r'' : rs')
+                           else (Set.union r' r'', rs')
 
 isRegionFencedIn :: Edges -> Spaces -> Bool
 isRegionFencedIn edges region =
   let regionBoundary = calculateBoundaryEdges region in
-  null $ difference edges regionBoundary
+  Set.isSubsetOf (Set.fromList regionBoundary) (Set.fromList edges)
 
 getRightEdge :: Space -> Edge
 getRightEdge (x, y) = ((x + 1, y), (x + 1, y + 1))
