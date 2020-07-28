@@ -1,37 +1,32 @@
 module InitialSetup where
 
+import Control.Lens
 import qualified Data.Map as M
 import System.Random
 import System.Random.Shuffle
+
 import Types.BasicGameTypes
-import Types.PlayerData
-import Types.GameState as GS
+import Types.CardDeclarations
+import ActionTypes
 import Actions.GameActionFuncs
 import Actions.ResourceActions
 import Actions.BoardActions
 import Utils.ListUtils
 
-initGameState :: (RandomGen g) => g -> String -> GameState
-initGameState g name =
+initGameState :: (RandomGen g) => g -> [String] -> NumPlayers -> GameMode -> GameState
+initGameState g names numPlayers mode =
   let (g1, g2) = split g
-      (g3, g4) = split g2
-      occupations = getSevenRandoms g1 :: OccupationTypes
-      improvements = getSevenRandoms g2 :: MinorImprovementTypes
-      pId = 0
-      player = Player pId
-                      name
-                      (Board ([(0,0),(0,1)], Wood) [] [] [])
-                      2     -- workers
-                      []
-                      (occupations, improvements)
-                      ([], [], []) in
+      actionMap = initActionSpaces numPlayers mode
+      roundCards = initFutureActionCards g1 (M.size actionMap)
+      players = getPlayers g2 names in
   GameState 1
             StartRound
-            [player]
-            (filter isStartingActionSpace initActionSpaces)
-            (initFutureActionCards g3)
+            players
+            actionMap
+            roundCards
+            M.empty
+            [minBound .. maxBound]
             []
-            actionTypeToGameActionMap
 
 -- Want to draw seven random cards, not repeating any
 getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]
@@ -40,88 +35,40 @@ getSevenRandoms g =
       l  = length es in
   take 7 $ shuffle' es l g
 
-isStartingActionSpace :: ActionSpace -> Bool
-isStartingActionSpace a = GS._actionType a `elem` startingActionTypes
-startingActionTypes = [BuildRoomAndOrStables .. Fishing]
-
--- Initialize the actions space cards
-initActionSpaces :: ActionSpaces
-initActionSpaces =
-  [ ActionSpace BuildRoomAndOrStables "BuildRoomAndOrStables" [] [],
-    ActionSpace StartingPlayerAndOrMinorImprovement "StartingPlayerAndOrMinorImprovement" [] [],
-    ActionSpace Take1Grain "Take 1 Grain" [] [],
-    ActionSpace Plow1Field "Plow 1 Field" [] [],
-    ActionSpace PlayOneOccupation "Play 1 Occupation. First Costs 1, the rest Cost 2" [] [],
-    ActionSpace DayLaborer "DayLaborer" [] [],
-    ActionSpace TakeWood (getResourcesDescription Wood) [] [],
-    ActionSpace TakeClay (getResourcesDescription Clay) [] [],
-    ActionSpace TakeReed (getResourcesDescription Reed) [] [],
-    ActionSpace Fishing (getResourcesDescription Food) [] [],
-    ActionSpace SowAndOrBakeBread "SowAndOrBakeBread" [] [],
-    ActionSpace TakeSheep (getResourcesDescription Sheep) [] [],
-    ActionSpace Fences "Fences" [] [],
-    ActionSpace MajorOrMinorImprovement "MajorOrMinorImprovement" [] [],
-    ActionSpace AfterFamilyGrowthAlsoImprovement "AfterFamilyGrowthAlsoImprovement" [] [],
-    ActionSpace AfterRenovationAlsoImprovement "AfterRenovationAlsoImprovement" [] [],
-    ActionSpace TakeBoar (getResourcesDescription Boar) [] [],
-    ActionSpace TakeVege "Take 1 Vege" [] [],
-    ActionSpace TakeStone1 (getResourcesDescription Stone) [] [],
-    ActionSpace TakeStone2 (getResourcesDescription Stone) [] [],
-    ActionSpace TakeCattle (getResourcesDescription Cattle) [] [],
-    ActionSpace PlowAndOrSow "PlowAndOrSow" [] [],
-    ActionSpace FamilyGrowthWithoutRoom "FamilyGrowthWithoutRoom" [] [],
-    ActionSpace AfterRenovationAlsoFences "AfterRenovationAlsoFences" [] [] ]
+getPlayers :: (RandomGen g) => g -> [String] -> Players
+getPlayers g names =
+  let (_, _, players) = foldl build (g, 0 :: PlayerId, []) names in
+  players & ix 0 . personalSupply . food .~ 2
+  where
+    build :: (RandomGen g) => (g, PlayerId, Players) -> String -> (g, PlayerId, Players)
+    build (g', pid, ps) name =
+      let (g1, g2) = split g'
+          (g3, g4) = split g1
+          occupations = getSevenRandoms g2 :: OccupationTypes
+          improvements = getSevenRandoms g3 :: MinorImprovementTypes
+          supply = PersonalSupply 3 0 0 0 0 0 0
+          player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) [] [] []) 2 supply (occupations, improvements) ([], [], []) in
+      (g4, pid + 1, player : ps)
 
 -- initialize future action cards list with random generator
-initFutureActionCards :: (RandomGen g) => g -> ActionSpaces
-initFutureActionCards g = map getActionSpace $ snd $ foldl randomize (g, []) actionCardStageMap
-  where randomize (g', rcs) rc = let (g1, g2) = split g' in (g1, rcs ++ shuffle' rc (length rc) g2)
+initFutureActionCards :: (RandomGen g) => g -> ActionSpaceId -> ActionSpaces
+initFutureActionCards g actionId =
+  let (_, b, _) = foldl randomizeSet (g, [], actionId) roundCards in
+  b
+  where
+    randomizeSet :: (RandomGen g) => (g, ActionSpaces, ActionSpaceId) ->
+                                     [(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource)] ->
+                                     (g, ActionSpaces, ActionSpaceId)
+    randomizeSet (g', futureCards, actionId') rcList =
+      let (g1, g2) = split g'
+          rcList' = shuffle' rcList (length rcList) g2
+          moreCards = zipWith (curry build) [actionId' .. ] rcList' in
+      (g1, futureCards ++ moreCards, actionId' + length rcList)
 
-getActionSpace :: ActionType -> ActionSpace
-getActionSpace at =
-  let maybeA = getFirstElem GS._actionType at initActionSpaces in
-  case maybeA of
-    Nothing -> ActionSpace Fishing (getResourcesDescription Food) [] []   -- Fix this!
-    Just actionSpace -> actionSpace
-
-actionCardStageMap :: [[ActionType]]
-actionCardStageMap =
-  [ [SowAndOrBakeBread, TakeSheep, Fences, MajorOrMinorImprovement],
-    [AfterFamilyGrowthAlsoImprovement, AfterRenovationAlsoImprovement, TakeStone1],
-    [TakeBoar, TakeVege],
-    [TakeStone2, TakeCattle],
-    [PlowAndOrSow, FamilyGrowthWithoutRoom],
-    [AfterRenovationAlsoFences] ]
-
-actionSpaceRunList :: [(ActionType, GameStateT ())]
-actionSpaceRunList =
-  [ (BuildRoomAndOrStables,               runBuildRoomAndOrStables)
-  , (StartingPlayerAndOrMinorImprovement, noIO)
-  , (Take1Grain,                          noIO)
-  , (Plow1Field,                          runPlowFieldAction)
-  , (PlayOneOccupation,                   noIO)
-  , (DayLaborer,                          noIO)
-  , (TakeWood,                            giveResourcesAction Wood TakeWood)
-  , (TakeClay,                            giveResourcesAction Clay TakeClay)
-  , (TakeReed,                            giveResourcesAction Reed TakeReed)
-  , (Fishing,                             giveResourcesAction Food Fishing)
-  , (SowAndOrBakeBread,                   runSowAndOrBakeBreadAction)
-  , (TakeSheep,                           giveResourcesAction Sheep TakeSheep)
-  , (Fences,                              runFencesAction)
-  , (MajorOrMinorImprovement,             noIO)
-  , (AfterFamilyGrowthAlsoImprovement,    noIO)
-  , (AfterRenovationAlsoImprovement,      noIO)
-  , (TakeStone1,                          giveResourcesAction Stone TakeStone1)
-  , (TakeStone2,                          giveResourcesAction Stone TakeStone2)
-  , (TakeBoar,                            giveResourcesAction Boar TakeBoar)
-  , (TakeVege,                            noIO)
-  , (TakeCattle,                          giveResourcesAction Cattle TakeCattle)
-  , (PlowAndOrSow,                        noIO)
-  , (FamilyGrowthWithoutRoom,             noIO) 
-  , (AfterRenovationAlsoFences,           noIO)
-  ]
-
-actionTypeToGameActionMap :: GameActionMap
-actionTypeToGameActionMap = foldl buildGameAction M.empty actionSpaceRunList
-  where buildGameAction m x = M.insert (fst x) (GameAction (ifNoWorkers (fst x)) (snd x)) m
-
+    build :: (ActionSpaceId, (Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource))
+                -> ActionSpace
+    build (actionId', (desc, eitherAction, allowed, replenish)) =
+      let simpleAction = case eitherAction of
+                              Left simple -> simple
+                              Right action -> action actionId' in
+      ActionSpace actionId' desc replenish simpleAction (allowed actionId') [] M.empty
