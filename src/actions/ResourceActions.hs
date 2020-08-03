@@ -7,6 +7,7 @@ import Control.Monad.State
 import qualified Data.Map as M
 
 import Types.BasicGameTypes
+import Actions.BoardActions
 import Utils.ListUtils
 import Utils.Selection
 
@@ -70,8 +71,21 @@ runTakeReedStoneAndFood = do
 -- Take Sheep or Board or Cattle -
 ----------------------------------
 
-runTakeSheepBoardOrCattle :: GameStateT ActionPrimitives
-runTakeSheepBoardOrCattle = return []
+runTakeSheepBoarOrCattle :: GameStateT ActionPrimitives
+runTakeSheepBoarOrCattle = do
+  gs <- get
+  lift $ putStrLn "What would you like to do?"
+  choice <- lift $ getNextSelection ([("Take 1 Sheep + 1 Food", 1), ("Take 1 Boar", 2)] ++ 
+              if currentPlayer gs ^. personalSupply . food > 0 then [("Pay 1 Food for 1 Cattle", 3)] else [])
+  let (at, foodOp) =
+        case choice of
+          1 -> (Sheep, (+1))
+          2 -> (Boar,  (+0))
+          3 -> (Cattle, (`subtract` 1))
+  b' <- lift $ placeNewAnimals (at, 1) $ currentPlayer gs ^. board
+  modify (\s -> s & players . ix 0 . personalSupply . food %~ foodOp
+                  & players . ix 0 . board .~ b')
+  return [TakeResources [(Animal at, 1)]]
 
 ----------------------------------
 -- Take 2 Building Resources or FamilyGrowth -
@@ -84,8 +98,12 @@ runTake2BuildingResourcesOrFamilyGrowth = return []
 -- Build 1 Room Or Traveling Players -
 ----------------------------------
 
-runBuildRoomOrTravelingPlayers :: GameStateT ActionPrimitives
-runBuildRoomOrTravelingPlayers = return []
+runBuildRoomOrTravelingPlayers :: ActionSpaceId -> GameStateT ActionPrimitives
+runBuildRoomOrTravelingPlayers id = do
+  lift $ putStrLn "Would you like to build a room or Traveling Players?"
+  yes <- lift $ getNextSelection [("Build a room", True), ("Traveling Players", False)]
+  if yes then runBuildRoom else takeResourcesAction id
+  
 
 ----------------------------------
 -- Take Reed and 1 Stone and 1 Wood -
@@ -97,6 +115,21 @@ runTakeReedand1Stoneand1Wood = return []
 getResourcesDescription :: ResourceType -> String
 getResourcesDescription rs = "Take all resources of type [" ++ show rs ++ "]"
 
+-------------------------------
+--------- Day Laborer ---------
+-------------------------------
+
+runDayLaborer :: GameStateT ActionPrimitives
+runDayLaborer = do
+  modify (\s -> s & players . ix 0 . personalSupply . food %~ (+2))
+  return [TakeResources [(Food, 2)]]
+
+runDayLaborerWithBuildingResource :: GameStateT ActionPrimitives
+runDayLaborerWithBuildingResource = do
+  modify (\s -> s & players . ix 0 . personalSupply . food %~ (+1))
+  results <- runTakeBuildingResource
+  return (TakeResources [(Food, 1)] : results)
+  
 -------------------------------
 --------- TakeResources -------
 -------------------------------
@@ -147,12 +180,6 @@ addWorker actionId pid asm =
         Nothing -> M.insert actionId (as { _workersMap = M.insert pid 1 (_workersMap as) }) asm
         Just n  -> M.insert actionId (as { _workersMap = M.insert pid (n + 1) (_workersMap as) }) asm
 
--- giveResourceToCurrentPlayer :: Resource -> GameState -> GameState
--- giveResourceToCurrentPlayer r gs = 
---   let p = currentPlayer gs
---       p' = giveResourcesToPlayer r p in
---   gs { _players = p':tail (_players gs) }
-
 addResources :: Resources -> PersonalSupply -> PersonalSupply
 addResources rs ps = foldl addResource ps rs
   where
@@ -168,3 +195,28 @@ addResources rs ps = foldl addResource ps rs
 
 removeResourceType :: ResourceType -> Resources -> Resources
 removeResourceType rt = filter (\(rt', _) -> rt /= rt')
+
+
+--------------------------------
+--------- Animal Storage -------
+--------------------------------
+
+placeNewAnimals :: Animal -> Board -> IO Board
+placeNewAnimals (at, n) b = do
+  putStrLn "Select where to put the new animals:"
+  let options = getAnimalStoreOptions b
+  getNextSelection options
+  return b
+  where
+    getAnimalStoreOptions :: Board -> Options Int
+    getAnimalStoreOptions b =
+      let houseOption = ("In your house", 0)
+          pastureOptions = zipWith (\(ss, mAnimal) n -> ("In pasture: " ++ show ss ++ ", containing: " ++ show mAnimal, n)) (_pastures b) [1 ..]
+          ps = allPastureSpaces b
+          unfencedStables = getUnfencedStables (_stables b) ps
+          stableOptions = zipWith (\(s, mAnimal) m -> ("In stable: " ++ show s ++ ", containing: " ++ show mAnimal, 10 + m)) unfencedStables [10 .. ] in
+      houseOption : pastureOptions ++ stableOptions
+
+    getUnfencedStables :: [(Space, Maybe Animal)] -> Spaces -> [(Space, Maybe Animal)]
+    getUnfencedStables allStables ss =
+      filter (\(s, _) -> s `notElem` ss) allStables

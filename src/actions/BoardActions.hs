@@ -27,19 +27,21 @@ buildRoomConditions asId =
     ifHaveEmptySpace gs =
       let b =  _board $ currentPlayer gs
           hs = _houses b in
-      not $ null $ getAdjacentEmptySpaces b (fst hs)
+      not . null $ getAdjacentEmptySpaces b (fst hs)
+
+runBuildRoomAndOrBuildStables :: GameStateT ActionPrimitives
+runBuildRoomAndOrBuildStables = do
+  results <- runBuildRoom
+  results' <- runBuildStables
+  return (results ++ results')
 
 runBuildRoom :: GameStateT ActionPrimitives
-runBuildRoom =  do
+runBuildRoom = do
   gs <- get
-  let ps = _players gs
-      p = head ps
-      b = _board p
+  let b = currentPlayer gs ^. board
   b' <- lift $ getBuildRoomChoices b
-  let p' = p { _board = b' }
-      ps' = p' : tail ps
-  put (gs { _players = ps' })
-  return []
+  put (gs & players . ix 0 . board .~ b')
+  return [ExtendHouse]
 
 getBuildRoomChoices :: Board -> IO Board
 getBuildRoomChoices b = do
@@ -57,13 +59,13 @@ getBuildRoomChoices b = do
     getBuildRoomOptions b = buildSpaceOptions $ getAdjacentEmptySpaces b $ fst $ _houses b
 
 addRoom :: Board -> Space -> Board
-addRoom (Board (hcs,mt) fs ps ss) c = Board (c:hcs, mt) fs ps ss
+addRoom b s = b & houses . _1 %~ (s:)
 
 -----------------------------
 ------- BuildStables --------
 -----------------------------
 
-runBuildStables :: GameStateT ()
+runBuildStables :: GameStateT ActionPrimitives
 runBuildStables = do
   gs <- get
   let ps = _players gs
@@ -73,6 +75,7 @@ runBuildStables = do
   let p' = p { _board = b' }
       ps' = p' : tail ps
   put (gs { _players = ps' })
+  return [BuildStables]
 
 getBuildStablesChoices :: Board -> IO Board
 getBuildStablesChoices b = do
@@ -90,7 +93,7 @@ getBuildStablesChoices b = do
     getBuildStablesOptions b = buildSpaceOptions $ notHouseFieldOrStable b
 
 addStable :: Board -> Space -> Board
-addStable (Board houses fields pastures stables) s = Board houses fields pastures ((s, Nothing) : stables)
+addStable b s = b & stables %~ ((s, Nothing) :)
     
 -----------------------------
 ------- RenovateHouse -------
@@ -126,7 +129,7 @@ getPlowFieldOptions :: Board -> Options Space
 getPlowFieldOptions b = buildSpaceOptions $ allEmptySpaces b
 
 addField :: Board -> Space -> Board
-addField (Board hs fs ps ss) s = Board hs ((s, Nothing):fs) ps ss
+addField b s = b & fields %~ ((s,Nothing):)
 
 -----------------------------
 ------ SowAndOrBakeBread ----
@@ -179,7 +182,7 @@ getSowFieldInput b = do
   return (space, crop)
 
 sowField :: Board -> Space -> CropType -> Board
-sowField (Board hs fs ps ss) s ct = Board hs (sow fs) ps ss
+sowField b s ct = b & fields %~ sow
   where sow = map (\(s', r') -> if s == s'
                                  then (s', addCrop)
                                  else (s', r'))

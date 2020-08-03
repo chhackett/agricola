@@ -1,6 +1,6 @@
 module Types.CardDeclarations where
 
-data CardTypes =
+data CardType =
   MajorImprovement |
   MinorImprovement |
   Occupation

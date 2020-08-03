@@ -47,7 +47,7 @@ getPlayers g names =
           occupations = getSevenRandoms g2 :: OccupationTypes
           improvements = getSevenRandoms g3 :: MinorImprovementTypes
           supply = PersonalSupply 3 0 0 0 0 0 0
-          player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) [] [] []) 2 supply (occupations, improvements) ([], [], []) in
+          player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] []) 2 supply (occupations, improvements) ([], [], []) in
       (g4, pid + 1, player : ps)
 
 -- initialize future action cards list with random generator

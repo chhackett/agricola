@@ -42,12 +42,34 @@ main = do
   --hSetEcho stdin False
   --hSetBuffering stdin NoBuffering
   putStrLn "Starting new Agricola game"
-  putStrLn "Please enter your name: "
-  userName <- getLine
-  putStrLn $ "Welcome, " ++ userName
+  playerNames <- getPlayerNames
+  putStrLn "What mode would you like to play?"
+  mode <- getNextSelection [("Family Game", FamilyGame), ("Normal Rules", NormalRules)]
   g <- getStdGen
-  (scores, finalState) <- runStateT playGame (initGameState g [userName] 1 NormalRules)
+  (scores, finalState) <- runStateT playGame (initGameState g playerNames (length playerNames) mode)
   putStrLn $ "The final score is: " ++ show scores
+
+getPlayerNames :: IO [String]
+getPlayerNames = do
+  putStrLn "How many players in this game? (1 - 5)"
+  numPlayers <- getLine
+  let n = read numPlayers
+  if n < 1 || n > 5
+    then do
+      putStrLn "Invalid # of players"
+      getPlayerNames
+    else do
+      putStrLn "Please enter names of the players: "
+      getNames n
+  where
+    getNames :: Int -> IO [String]
+    getNames n' = do
+      userName <- getLine
+      if n' > 1
+      then do
+        names <- getNames (n' - 1)
+        return (userName : names)
+      else return [userName]
 
 -- Returns the final scores as the result
 playGame :: GameStateT [Int]
@@ -143,7 +165,7 @@ doBreedPhase = do
 
 getAllowedActions :: GameState -> Options ActionSpaceId
 getAllowedActions gs =
-  M.elems $ M.mapWithKey build $ M.filter (`_actionAllowed` gs) (_actionSpaceMap gs)
+  M.elems . M.mapWithKey build $ M.filter (`_actionAllowed` gs) (_actionSpaceMap gs)
   where
     build :: ActionSpaceId -> ActionSpace -> Option ActionSpaceId
     build id as = (_description as, id)

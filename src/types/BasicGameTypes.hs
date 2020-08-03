@@ -100,10 +100,11 @@ type Players = [Player]
 
 data Board = Board
   { _houses :: (Spaces, HouseMaterial)
+  , _houseAnimal :: Maybe AnimalType    -- can only have 1 animal in your house, so specify the type only
   , _fields :: [(Space, Maybe Crop)]
   , _pastures :: [(Spaces, Maybe Animal)]
   , _stables :: [(Space, Maybe Animal)] }
-  deriving (Show, Read)
+  deriving (Show, Read, Eq, Ord)
 
 data PersonalSupply = PersonalSupply
   { _food :: Int
@@ -126,8 +127,8 @@ data Player = Player
   deriving (Show, Read)
 
 $(makeLenses ''Board)
-$(makeLenses ''Player)
 $(makeLenses ''PersonalSupply)
+$(makeLenses ''Player)
 
 ------------------------------------------
 ----------- Action Types -----------------
@@ -303,3 +304,4 @@ nextPlayer ps = tail ps ++ [head ps]
 
 currentPlayer :: GameState -> Player
 currentPlayer = head . _players
+-- currentPlayer = flip (players . ix 0)
