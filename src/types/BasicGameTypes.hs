@@ -299,9 +299,5 @@ allHorizontalEdges = [((x, y), (x + 1, y)) | x <- [0 .. 4], y <- [0 .. 3]]
 allVerticalEdges :: Edges
 allVerticalEdges = [((x, y), (x, y + 1)) | x <- [0 .. 5], y <- [0 .. 2]]
 
-nextPlayer :: Players -> Players
-nextPlayer ps = tail ps ++ [head ps]
-
 currentPlayer :: GameState -> Player
 currentPlayer = head . _players
--- currentPlayer = flip (players . ix 0)

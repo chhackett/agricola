@@ -129,8 +129,9 @@ doWorkPhase = do
   nextActionId <- lift $ getNextSelection options
   lift $ putStrLn $ "You selected: " ++ show nextActionId
   modify $ putCurrentPlayerWorkerOnActionSpace nextActionId
-  let action = _actionSpaceMap gs M.! nextActionId
-  result <- _action action
+  let as = _actionSpaceMap gs M.! nextActionId
+  result <- _action as
+  modify nextPlayer
   n' <- gets availableWorkers
   lift $ putStrLn $ "You have " ++ show n' ++ " worker(s) left."
   when (n' > 0) doWorkPhase
@@ -168,22 +169,14 @@ getAllowedActions gs =
   M.elems . M.mapWithKey build $ M.filter (`_actionAllowed` gs) (_actionSpaceMap gs)
   where
     build :: ActionSpaceId -> ActionSpace -> Option ActionSpaceId
-    build id as = (_description as, id)
-
--- getActionSpaceOptions :: GameState -> M.Map Option ActionSpace
--- getActionSpaceOptions gs =
---   let actions = getAllowedActions gs in
---   fst $ foldl next (M.empty, 'a') actions
---   where next (result, c) a =
---           let c' = if c == 'z' then 'A' else succ c in
---           (M.insert (c, show a) a result, c')
+    build id as = 
+      let moreDetails = case _replenishment as of
+            Nothing -> ""
+            Just _  -> " (" ++ show (_resources as) ++ ")" in
+      (_description as ++ moreDetails, id)
 
 availableWorkers :: GameState -> Int
 availableWorkers = _workers . currentPlayer
-
--- showOptions :: M.Map Char ActionSpace -> String
--- showOptions options = let optionsList = M.toList options in foldl builder "" optionsList
---   where builder result option = result ++ "\n\t(" ++ [fst option] ++ ") " ++ show (snd option)
 
 endOfStage :: Round -> Bool
 endOfStage r = r == 4 || r == 7 || r == 9 || r == 11 || r == 13 || r == 14
@@ -193,3 +186,6 @@ showResources = M.foldl build ""
   where 
     build :: String -> ActionSpace -> String
     build result as = _description as ++ ": " ++ show (_resources as)
+
+nextPlayer :: GameState -> GameState
+nextPlayer gs = let p : ps = _players gs in gs & players .~ (ps ++ [p])
