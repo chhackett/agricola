@@ -12,6 +12,7 @@ import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.BoardActions
 import Actions.AutomaticActions
+import Actions.HarvestActions
 import Utils.Selection
 import Utils.ListUtils
 import InitialSetup
@@ -112,7 +113,7 @@ doStartRoundPhase = do
 
 doReplenishPhase :: GameStateT ()
 doReplenishPhase = do
-  lift $ putStrLn "Replenishing action spaces:"
+  lift $ putStrLn "Replenishing action spaces"
   modify replenish
   gs <- get
   lift $ putStrLn $ showResources (_actionSpaceMap gs)
@@ -129,9 +130,10 @@ doWorkPhase = do
   nextActionId <- lift $ getNextSelection options
   lift $ putStrLn $ "You selected: " ++ show nextActionId
   modify $ putCurrentPlayerWorkerOnActionSpace nextActionId
+  modify (\gs -> gs & currentActionId .~ nextActionId)
   let as = _actionSpaceMap gs M.! nextActionId
   result <- _action as
-  modify nextPlayer
+  modify nextPlayer   -- go to the next player
   n' <- gets availableWorkers
   lift $ putStrLn $ "You have " ++ show n' ++ " worker(s) left."
   when (n' > 0) doWorkPhase
@@ -151,17 +153,19 @@ doHarvestPhase = do
 
 doFieldPhase :: GameStateT ()
 doFieldPhase = do
-  lift $ putStrLn "Harvest Time!"
+  lift $ putStrLn "Harvesting fields"
+  result <- runHarvestFields
   return ()
 
 doFeedPhase :: GameStateT ()
 doFeedPhase = do
-  lift $ putStrLn "Harvest Time!"
+  lift $ putStrLn "Feeding family"
+  result <- runFeedFamily
   return ()
 
 doBreedPhase :: GameStateT ()
 doBreedPhase = do
-  lift $ putStrLn "Harvest Time!"
+  lift $ putStrLn "Breeding animals"
   return ()
 
 getAllowedActions :: GameState -> Options ActionSpaceId

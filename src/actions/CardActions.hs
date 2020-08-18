@@ -36,6 +36,18 @@ runPlayOccupation = do
           & players . ix 0 . personalSupply . food %~ subtract (if length inhand == 7 then 1 else 2))
   return [PlayOccupation card]
 
+---------------------------------------
+-- Play a Major Or Minor Improvement --
+---------------------------------------
+
+runPlayMajorOrMinorImprovement :: GameStateT ActionPrimitives
+runPlayMajorOrMinorImprovement = do
+  let options = [("Major", 0), ("Minor", 1)]
+  choice <- lift $ getNextSelection options
+  case choice of
+    0 -> runPlayMajorImprovement
+    1 -> runPlayMinorImprovement
+
 ----------------------------------
 ---- Play a Minor Improvement ----
 ----------------------------------
@@ -43,22 +55,25 @@ runPlayOccupation = do
 runPlayMinorImprovement :: GameStateT ActionPrimitives
 runPlayMinorImprovement = do
   gs <- get
-  let cards = gs ^. players . ix 0 . activeCards . _2
-      inhand = gs ^. players . ix 0 . hand . _2
+  let inhand = gs ^. players . ix 0 . hand . _2
       options = map (\h -> (show h, h)) inhand
   card <- lift $ getNextSelection options
   let newhand = filter (/= card) inhand
-  put (gs & players . ix 0 . activeCards . _2 .~ (card:cards)
+  put (gs & players . ix 0 . activeCards . _2 %~ (card:)
           & players . ix 0 . hand . _2 .~ newhand )
   return [PlayMinorImprovement card]
 
--- runPlayCard :: CardType -> a -> GameStateT ActionPrimitives
--- runPlayCard ct = do
---   gs <- get
---   let selector = if ct == Occupation then _1 else _2
---       cards = gs ^. players . ix 0 . activeCards . selector
---       inhand = gs ^. players . ix 0 . hand . selector
---       options = map (\h -> (show h, h)) inhand
---   card <- lift $ getNextSelection options
---   put (gs & players . ix 0 . activeCards . selector .~ (card:cards))
---   return [if ct == Occupation then PlayOccupation card else PlayMinorImprovement card]
+----------------------------------
+---- Play a Major Improvement ----
+----------------------------------
+
+runPlayMajorImprovement :: GameStateT ActionPrimitives
+runPlayMajorImprovement = do
+  gs <- get
+  let oldMajors = gs ^. availableMajorImprovements
+      options = map (\c -> (show c, c)) oldMajors
+  card <- lift $ getNextSelection options
+  let newMajors = filter (/= card) oldMajors
+  put (gs & players . ix 0 . activeCards . _3 %~ (card:)
+          & availableMajorImprovements .~ newMajors )
+  return [PlayMajorImprovement card]

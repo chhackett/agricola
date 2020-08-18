@@ -54,11 +54,11 @@ fixedActionSpaces =
   , ("Take Wood", Right takeResourcesAction, ifNoWorkers, Just (Material Wood, 3), [FamilyGame, NormalRules])
   , ("Take Reed", Right takeResourcesAction, ifNoWorkers, Just (Material Reed, 1), [FamilyGame, NormalRules])
   , ("Fishing", Right takeResourcesAction, ifNoWorkers, Just (Food, 1), [FamilyGame, NormalRules])
-  , ("Build room(s) and/or Build Stable(s)", Left runBuildRoomAndOrBuildStables, buildRoomConditions, Nothing, [FamilyGame, NormalRules])
+  , ("Build room(s) and/or Build Stable(s)", Left runBuildRoomAndOrStables, meetsOneOrTheOtherCondition (buildRoomConditions, buildStablesConditions), Nothing, [FamilyGame, NormalRules])
   , ("Starting Player and Storehouse", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame])
   , ("Starting Player and/or 1 Minor Improvement", Right takeResourcesAction, ifNoWorkers, Nothing, [NormalRules])
-  , ("Take 1 Grain", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
-  , ("Plow 1 Field", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
+  , ("Take 1 Grain", Left runTakeGrain, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
+  , ("Plow 1 Field", Left runPlowFieldAction, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
   , ("Build Stable and/or Bake bread", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame])
   , ("1 Occupation", Left runPlayOccupation, playOccupationConditions, Nothing, [NormalRules])
   , ("Day Laborer", Left runDayLaborer, ifNoWorkers, Nothing, [NormalRules])
@@ -69,7 +69,7 @@ fixedActionSpaces =
 actionSpaceCards :: [(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource, [(GameMode, NumPlayers)])]
 actionSpaceCards =
   [ ("Take 1 Building Resource", Left runTakeBuildingResource, ifNoWorkers, Nothing, [(FamilyGame, 3), (NormalRules, 3)])
-  , ("Take 2 Different Building Resource", Left runTake2DifferentBuildingResources, ifNoWorkers, Nothing, [(FamilyGame, 3), (FamilyGame, 4)])
+  , ("Take 2 Different Building Resources", Left runTake2DifferentBuildingResources, ifNoWorkers, Nothing, [(FamilyGame, 3), (FamilyGame, 4)])
   , ("Take Clay", Right takeResourcesAction, ifNoWorkers, Just (Material Clay, 1), [(FamilyGame, 3), (NormalRules, 3)])
   , ("Take Wood", Right takeResourcesAction, ifNoWorkers, Just (Material Wood, 2), [(FamilyGame, 3), (NormalRules, 3), (FamilyGame, 4), (NormalRules, 4)])
 
@@ -83,7 +83,7 @@ actionSpaceCards =
   , ("1 Occupation", Left runPlayOccupation, ifNoWorkers, Nothing, [(NormalRules, 4)])
 
   , ("Take 1 Sheep and Food or 1 Boar or Pay 1 food for 1 Cattle", Left runTakeSheepBoarOrCattle, ifNoWorkers, Nothing, [(FamilyGame, 5), (NormalRules, 5)])
-  , ("Take 2 different Building Resources or, from Round 5, Family growth", Left runTake2BuildingResourcesOrFamilyGrowth, ifNoWorkers, Nothing, [(FamilyGame, 5)])
+  , ("Take 2 different Building Resources or, from Round 5, Family growth", Left runTake2DifferentBuildingResourcesOrFamilyGrowth, ifNoWorkers, Nothing, [(FamilyGame, 5)])
   , ("Build 1 Room or Traveling Players", Right runBuildRoomOrTravelingPlayers, ifNoWorkers, Just (Food, 1), [(FamilyGame, 5), (NormalRules, 5)])
   , ("Take Reed. In addition, take 1 Stone and 1 Wood", Left runTakeReedand1Stoneand1Wood, ifNoWorkers, Just (Material Reed, 1), [(FamilyGame, 5), (NormalRules, 5)])
   , ("Take Wood", Right takeResourcesAction, ifNoWorkers, Just (Material Wood, 4), [(FamilyGame, 5), (NormalRules, 5)])
@@ -97,19 +97,19 @@ roundCards =
   -- Stage 1 cards
   [ [ ("Sow and/or Bake bread", Left runSowAndOrBakeBreadAction, sowAndOrBakeBreadConditions, Nothing)
     , ("Fences", Left runFencesAction, fencesConditions, Nothing)
-    , ("Major or Minor Improvement", Left noop, ifNoWorkers, Nothing)
+    , ("Major or Minor Improvement", Left runPlayMajorOrMinorImprovement, ifNoWorkers, Nothing)
     , ("Take Sheep", Right takeResourcesAction, ifNoWorkers, Just (Animal Sheep, 1))
     ],
 
   -- Stage 2 cards
     [ ("After Family growth also 1 Minor Improvement", Left noop, ifNoWorkers, Nothing)
     , ("Take Stone", Right takeResourcesAction, ifNoWorkers, Just (Material Stone, 1))
-    , ("After Renovation also 1 Major or Minor Improvement", Left noop, ifNoWorkers, Nothing)
+    , ("After Renovation also 1 Major or Minor Improvement", Left afterRenovationAlsoMajorOrMinor, renovateConditions, Nothing)
     ],
 
   -- Stage 3 cards
     [ ("Take Boar", Right takeResourcesAction, ifNoWorkers, Just (Animal Boar, 1))
-    , ("Take 1 Vege", Right takeResourcesAction, ifNoWorkers, Nothing)
+    , ("Take 1 Vege", Left runTakeVege, ifNoWorkers, Nothing)
     ],
 
   -- Stage 4 cards
@@ -129,3 +129,6 @@ roundCards =
 
 noop :: GameStateT ActionPrimitives
 noop = return []
+
+meetsOneOrTheOtherCondition :: (ActionSpaceId -> ActionAllowedFunc, ActionSpaceId -> ActionAllowedFunc) -> ActionSpaceId -> ActionAllowedFunc
+meetsOneOrTheOtherCondition (a, b) id gs = any (\f -> f id gs) [a, b]

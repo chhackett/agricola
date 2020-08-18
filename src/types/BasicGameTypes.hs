@@ -2,6 +2,7 @@
 
 module Types.BasicGameTypes where
 
+import Data.List
 import qualified Data.Map as M
 
 import Control.Monad.State
@@ -123,7 +124,8 @@ data Player = Player
   , _workers :: NumWorkers
   , _personalSupply :: PersonalSupply
   , _hand :: (OccupationTypes, MinorImprovementTypes)
-  , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes) }
+  , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
+  , _beggingCards :: Int }
   deriving (Show, Read)
 
 $(makeLenses ''Board)
@@ -145,6 +147,7 @@ $(makeLenses ''Player)
 data ActionPrimitive =
     PhaseChange Phase
   | RoundChange Round
+  | StartingPlayer
   | ExtendHouse
   | RenovateHouse
   | FamilyGrowth
@@ -193,7 +196,9 @@ data GameState = GameState
   , _futureActionSpaces :: [ActionSpace]
   , _actionSpaceRoundMap :: RoundActionSpaceIdMap
   , _availableMajorImprovements :: MajorImprovementTypes
-  , _eventHistory :: ActionEvents }
+  , _eventHistory :: ActionEvents
+  , _currentActionId :: ActionSpaceId
+  , _nextStartingPlayer :: PlayerId }
 
 type GameStateT a = StateT GameState IO a
 
@@ -226,25 +231,24 @@ instance Show ActionSpace where
     desc ++ ", Id: " ++ show id ++
     ", Workers: " ++ showWorkers workers ++
     ", Resources: " ++ show rs
-    -- "\n             Reserved: " ++ show reserved ++
 
 showWorkers :: PlayerCountMap -> String
 showWorkers pcm =
   if M.null pcm
     then "None"
-    else "[" ++ M.foldlWithKey build "" pcm ++ "]"
+    else "[" ++ intercalate ", " (map toString $ M.toList pcm) ++ "]"
   where
-    build :: String -> PlayerId -> Int -> String
-    build val pid n = val ++ show pid ++ ": " ++ show n
+    toString :: (PlayerId, Int) -> String
+    toString (pid, n) = show pid ++ ": " ++ show n
 
 $(makeLenses ''ActionSpace)
 
 instance Show GameState where
-  show (GameState round phase players actions futureActions _ majors _) =
+  show (GameState round phase players actions futureActions _ majors _ _ _) =
     "GameState: Round: " ++ show round ++
     "\n           Phase: " ++ show phase ++
     "\n           CurrentPlayer: " ++ _name (head players) ++
-    "\n           Players: " ++ show players ++
+    "\n           Players: " ++ foldl (\s p -> s ++ show p ++ "\n") "" players ++
     "\n           Available Action Spaces: " ++ showActions actions ++
     "\n           Available Major Improvements: " ++ show majors
 

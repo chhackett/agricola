@@ -5,7 +5,6 @@ import Test.Tasty.HUnit
 
 import Data.List
 import Types.BasicGameTypes
-import Types.PlayerData
 import Actions.BoardActions
 
 boardActionsTests = testGroup "BoardActionsTests" [fenceTests]
@@ -17,13 +16,19 @@ fenceTests = testGroup "Fencing Action Tests"
     isRegionFencedInTests,
     calculatePasturesTest]
 
-emptyBoard = Board ([(0,0),(0,1)], Wood) [] [] []
+emptyBoard = Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] []
+boardWithStables = Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] [ ( (3,2), Nothing ), ( (4,2), Nothing ) ]
+boardWithField = Board ([(0,0),(0,1)], WoodHouse) Nothing [( (4,0), Nothing ), ( (3,0), Nothing )] [] [ ( (3,2), Nothing ) ]
 
 isFenceAllowedTests = testGroup "Fence Allowed Tests"
   [ testCase "Fence is not allowed between two houses" $ let result = isFenceAllowed ((0,1), (1,1)) emptyBoard in
       result @?= False
   , testCase "Fence should be allowed next to empty space" $ let result = isFenceAllowed ((1,0), (1,1)) emptyBoard in
       result @?= True
+  , testCase "Fence should be allowed around a pasture" $ let result = isFenceAllowed ((4,2), (4,3)) boardWithStables in
+      result @?= True
+  , testCase "Fence is not allowed around a field" $ let result = isFenceAllowed ((4,0), (4,1)) boardWithField in
+      result @?= False
   ]
 
 calculateBoundaryEdgesTests = testGroup "Calculate boundary edges tests"
@@ -90,16 +95,10 @@ calculatePasturesTest = testGroup "Compute whether given edges define pastures"
       result @?= [[(1,1)]]
   , testCase "Simple pasture test" $
     let edges =  [((4,2),(4,3))]
-        pastures = [ ( [ (3,2),(4,2) ], [] ) ]
-        board = Board ([(0,0),(0,1)], Wood) [] pastures []
+        pastures = [ ( [ (3,2),(4,2) ], Nothing ) ]
+        board = Board ([(0,0),(0,1)], WoodHouse) Nothing [] pastures []
         result = calculatePastures board edges in
     do length result @?= 2
        assertBool "Space (3,2) was not part of the result" $ [(3,2)] `elem` result
        assertBool "Space (4,2) was not part of the result" $ [(4,2)] `elem` result
   ]
--- materialTest = testCase "Giving Wood to player test" $
---   let Player _ _ _ _ _ ms _ _ = giveMaterialToPlayer (Wood,3) player
---       ms' = filter (\m -> fst m == Wood) ms in
---       do length ms' @?= 1
---          let (_, n) = head ms'
---          n @?= 10

@@ -27,6 +27,8 @@ initGameState g names numPlayers mode =
             M.empty
             [minBound .. maxBound]
             []
+            0
+            0
 
 -- Want to draw seven random cards, not repeating any
 getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]
@@ -47,7 +49,7 @@ getPlayers g names =
           occupations = getSevenRandoms g2 :: OccupationTypes
           improvements = getSevenRandoms g3 :: MinorImprovementTypes
           supply = PersonalSupply 3 0 0 0 0 0 0
-          player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] []) 2 supply (occupations, improvements) ([], [], []) in
+          player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] []) 2 supply (occupations, improvements) ([], [], []) 0 in
       (g4, pid + 1, player : ps)
 
 -- initialize future action cards list with random generator

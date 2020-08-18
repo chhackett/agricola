@@ -10,6 +10,7 @@ import Data.List.Lens
 import qualified Data.Set as Set
 import Data.List
 
+import Actions.CardActions
 import Types.BasicGameTypes
 import Utils.Selection
 import Utils.ListUtils
@@ -22,17 +23,22 @@ import ActionTypes
 buildRoomConditions :: ActionSpaceId -> ActionAllowedFunc
 buildRoomConditions asId =
   allConditions [ifNoWorkers asId, ifHaveEmptySpace, ifHaveResources [(Material Wood, 5), (Material Clay, 2)]]
-  where
-    ifHaveEmptySpace :: ActionAllowedFunc
-    ifHaveEmptySpace gs =
-      let b =  _board $ currentPlayer gs
-          hs = _houses b in
-      not . null $ getAdjacentEmptySpaces b (fst hs)
 
-runBuildRoomAndOrBuildStables :: GameStateT ActionPrimitives
-runBuildRoomAndOrBuildStables = do
-  results <- runBuildRoom
-  results' <- runBuildStables
+buildStablesConditions :: ActionSpaceId -> ActionAllowedFunc
+buildStablesConditions asId =
+  allConditions [ifNoWorkers asId, ifHaveEmptySpace, ifHaveResources [(Material Wood, 2)]]
+
+runBuildRoomAndOrStables :: GameStateT ActionPrimitives
+runBuildRoomAndOrStables = do
+  gs <- get
+  results <-
+    if ifHaveResources [(Material Wood, 5), (Material Clay, 2)] gs
+      then optionalDoGS "Do you want to build a room?" [] runBuildRoom
+      else return []
+  results' <- 
+    if ifHaveResources [(Material Wood, 2)] gs
+      then optionalDoGS "Do you want to build a stables?" [] runBuildStables
+      else return []
   return (results ++ results')
 
 runBuildRoom :: GameStateT ActionPrimitives
@@ -41,18 +47,16 @@ runBuildRoom = do
   let b = currentPlayer gs ^. board
   b' <- lift $ getBuildRoomChoices b
   put (gs & players . ix 0 . board .~ b')
-  return [ExtendHouse]
+  if ifHaveResources [(Material Wood, 5), (Material Clay, 2)] gs
+    then optionalDoGS "Do you want to build another room?" [ExtendHouse] runBuildRoom
+    else return [ExtendHouse]
 
 getBuildRoomChoices :: Board -> IO Board
 getBuildRoomChoices b = do
   let options = getBuildRoomOptions b
   putStrLn "Select a location to build a room"
   space <- getNextSelection options
-  let b' = addRoom b space
-  putStrLn "Do you want to build another room?"
-  yes <- getNextSelection yesNoOptions
-  if yes then getBuildRoomChoices b'
-         else return b'
+  return $ addRoom b space
   where
     -- User can pick from any empty space adjacent to existing rooms
     getBuildRoomOptions :: Board -> Options Space
@@ -68,25 +72,19 @@ addRoom b s = b & houses . _1 %~ (s:)
 runBuildStables :: GameStateT ActionPrimitives
 runBuildStables = do
   gs <- get
-  let ps = _players gs
-      p = head ps
-      b = _board p
+  let b = currentPlayer gs ^. board
   b' <- lift $ getBuildStablesChoices b
-  let p' = p { _board = b' }
-      ps' = p' : tail ps
-  put (gs { _players = ps' })
-  return [BuildStables]
+  put $ gs & players . ix 0 . board .~ b'
+  if ifHaveResources [(Material Wood, 2)] gs
+    then optionalDoGS "Do you want to build another stable?" [BuildStables] runBuildStables
+    else return [BuildStables]
 
 getBuildStablesChoices :: Board -> IO Board
 getBuildStablesChoices b = do
   let options = getBuildStablesOptions b
   putStrLn "Select a location to build a stable"
   space <- getNextSelection options
-  let b' = addStable b space
-  putStrLn "Do you want to build another stable?"
-  yes <- getNextSelection yesNoOptions
-  if yes then getBuildStablesChoices b'
-         else return b'
+  return $ addStable b space
   where
     -- User can pick from any empty space adjacent to existing rooms
     getBuildStablesOptions :: Board -> Options Space
@@ -94,29 +92,54 @@ getBuildStablesChoices b = do
 
 addStable :: Board -> Space -> Board
 addStable b s = b & stables %~ ((s, Nothing) :)
-    
+
+-------------------------------
+-- Renovate + Major or Minor --
+-------------------------------
+
+renovateConditions :: ActionSpaceId -> ActionAllowedFunc
+renovateConditions asId =
+  allConditions [ifNoWorkers asId, haveResourcesForRenovation]
+  where
+    haveResourcesForRenovation :: GameState -> Bool
+    haveResourcesForRenovation gs =
+      let n = length $ currentPlayer gs ^. board . houses . _1
+          material = currentPlayer gs ^. board . houses . _2 in
+      currentPlayer gs ^. personalSupply . reed >= 1 &&
+      currentPlayer gs ^. personalSupply .
+        (if material == WoodHouse then clay else stone) >= n
+
+afterRenovationAlsoMajorOrMinor :: GameStateT ActionPrimitives
+afterRenovationAlsoMajorOrMinor = do
+  result <- renovateHouse
+  result' <- runPlayMajorOrMinorImprovement
+  return (result ++ result')
+
 -----------------------------
 ------- RenovateHouse -------
 -----------------------------
 
-renovateHouse :: GameStateT ()
-renovateHouse = return ()
+renovateHouse :: GameStateT ActionPrimitives
+renovateHouse = do
+  gs <- get
+  let n = length $ currentPlayer gs ^. board . houses . _1
+      m = currentPlayer gs ^. board . houses . _2
+  put $ gs & players . ix 0 . board . houses . _2 .~ (if m == WoodHouse then ClayHouse else StoneHouse)
+           & players . ix 0 . personalSupply . (if m == WoodHouse then clay else stone) -~ n
+           & players . ix 0 . personalSupply . reed -~ 1
+  return [RenovateHouse]
 
 -----------------------------
 --------- Plow1Field --------
 -----------------------------
 
-runPlowFieldAction :: GameStateT ()
+runPlowFieldAction :: GameStateT ActionPrimitives
 runPlowFieldAction = do
   gs <- get
-  let ps = _players gs
-      p = head ps
-      b = _board p
+  let b = currentPlayer gs ^. board
   s <- lift $ getPlowFieldChoice b
-  let b' = addField b s
-      p' = p { _board = b' }
-      ps' = p' : tail ps
-  put (gs { _players = ps' })
+  put $ gs & players . ix 0 . board .~ addField b s
+  return [PlowField]
 
 getPlowFieldChoice :: Board -> IO Space
 getPlowFieldChoice b = do
@@ -141,7 +164,7 @@ sowAndOrBakeBreadConditions asId =
   where
     ifHaveEmptyField :: ActionAllowedFunc
     ifHaveEmptyField gs = 
-      let fs = _fields $ _board $ currentPlayer gs in
+      let fs = currentPlayer gs ^. board . fields in
       not (null fs) && any (\f -> case snd f of
                                     Nothing -> True
                                     Just n  -> False) fs
@@ -149,24 +172,21 @@ sowAndOrBakeBreadConditions asId =
 runSowAndOrBakeBreadAction :: GameStateT ActionPrimitives
 runSowAndOrBakeBreadAction = do
   results <- runSowAction
-  lift $ putStrLn "Would you like to bake bread too?"
-  yes <- lift $ getNextSelection yesNoOptions
-  if yes
-    then (do results' <- runBakeBreadAction
-             return (results ++ results'))
-    else return results
+  optionalDoGS "Would you like to bake bread too?" results $
+    do results' <- runBakeBreadAction
+       return (results ++ results')
 
 runSowAction :: GameStateT ActionPrimitives
 runSowAction = do
   gs <- get
-  let ps = _players gs
-      p = head ps
-      b = _board p
+  let b = currentPlayer gs ^. board
   (s, ct) <- lift $ getSowFieldInput b
-  let b' = sowField b s ct
-      p' = p { _board = b' }
-      ps' = p' : tail ps
-  put (gs { _players = ps' })
+  let supply = currentPlayer gs ^. personalSupply
+      supply' = if ct == Grain
+                then supply & grain %~ (`subtract` 1)
+                else supply & veges %~ (`subtract` 1)
+  put $ gs & players . ix 0 . board .~ sowField b s ct
+           & players . ix 0 . personalSupply .~ supply'
   return []
 
 -- User needs to pick which field to sow.
@@ -201,7 +221,7 @@ runBakeBreadAction = return []
 
 fencesConditions :: ActionSpaceId -> ActionAllowedFunc
 fencesConditions asId =
-  allConditions [ifNoWorkers asId]
+  allConditions [ifNoWorkers asId, ifHaveResources [(Material Wood, 1)] ]
 
 -- fence action rules:
 -- cannot place a fence where you already placed a fence
@@ -212,19 +232,13 @@ fencesConditions asId =
 runFencesAction :: GameStateT ActionPrimitives
 runFencesAction = do
   gs <- get
-  let ps = _players gs
-      p = head ps
-      b = _board p
-      supply = _personalSupply p
-      n = _wood supply
+  let b = currentPlayer gs ^. board
+      n = currentPlayer gs ^. personalSupply . wood
   es <- lift $ getFenceChoices (b, n, [])
   let es' = concatMap calculateBoundaryEdges (toListOf (pastures . traverse . _1) b)
       pastures' = map (\ss -> (ss, Nothing)) $ calculatePastures b (es ++ es') -- use all edges on the board
-      b' = b { _pastures = pastures' }
-      supply' = supply { _wood = n - length es}
-      p' = p { _board = b' } { _personalSupply = supply'}
-      ps' = p' : tail ps
-  put (gs { _players = ps' })
+  put $ gs & players . ix 0 . board . pastures .~ pastures'
+           & players . ix 0 . personalSupply . wood .~ n - length es
   return []
 
 -- Given the board compute where the user selects to put the next fence piece
@@ -233,23 +247,22 @@ getFenceChoices (b, n, es) = do
     putStrLn ("You can place [" ++ show n ++ "] more fences. Select where to place your next fence")
     e <- getNextSelection $ options $ filter (`notElem` es) $ availableFenceLocations b
     if n > 0
-      then do
-        putStrLn "Do you want to place another fence?"
-        yes <- getNextSelection yesNoOptions
-        if yes then getFenceChoices (b, n - 1, e : es)
-               else return (e : es)
+      then optionalDoIO "Do you want to place another fence?" (e : es) $ getFenceChoices (b, n - 1, e : es)
       else return (e : es)
     where
       options = map (\e' -> ("Location: " ++ show e', e'))
 
 availableFenceLocations :: Board -> Edges
 availableFenceLocations b = [ e | e <- allEdges, isFenceAllowed e b]
-  where
-    isFenceAllowed :: Edge -> Board -> Bool
-    isFenceAllowed e b =
-      let spaces = getAdjacentSpaces e
-          validSpaces = filter isValidSpace spaces in
-      not $ null $ intersect (allEmptySpaces b) validSpaces
+
+-- A fence is allowed at a specified edge location if there is not already a fence there,
+-- and if the edge is adjacent to a space that does not have a field or house on it
+isFenceAllowed :: Edge -> Board -> Bool
+isFenceAllowed e b =
+  let validSpaces = filter isValidSpace (getAdjacentSpaces e)
+      fences = concatMap (\(ss,_) -> calculateBoundaryEdges ss) (_pastures b)
+      hf = allHousesAndFields b in
+  any (`notElem` hf) validSpaces && (e `notElem` fences)
 
 getAdjacentSpaces :: Edge -> Spaces
 getAdjacentSpaces ((x1, y1), (x2, y2)) =
@@ -259,6 +272,7 @@ getAdjacentSpaces ((x1, y1), (x2, y2)) =
 
 isVerticalEdge :: Edge -> Bool
 isVerticalEdge ((x1, _), (x2, _)) = x1 == x2
+
 
 -- Given list of spaces, compute bordering edges, removing edges that are shared by orthogonally adjacent spaces
 calculateBoundaryEdges :: Spaces -> Edges
@@ -384,3 +398,9 @@ isValidSpace s = s `elem` allSpaces
 
 buildSpaceOptions :: Spaces -> Options Space
 buildSpaceOptions = map (\s -> ("Location: " ++ show s, s))
+
+ifHaveEmptySpace :: ActionAllowedFunc
+ifHaveEmptySpace gs =
+  let b  = _board $ currentPlayer gs
+      hs = _houses b in
+  not . null $ getAdjacentEmptySpaces b (fst hs)

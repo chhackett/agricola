@@ -1,10 +1,34 @@
 module Actions.AutomaticActions where
 
+import Control.Monad.State
 import Control.Lens
 import qualified Data.Map as M
 
 import Types.BasicGameTypes
 import Utils.ListUtils
+
+----------------------------------
+---------- Family Growth ---------
+----------------------------------
+
+runFamilyGrowth :: GameStateT ActionPrimitives
+runFamilyGrowth = do
+  gs <- get
+  let id = gs ^. currentActionId
+      pid = currentPlayer gs ^. playerId
+  modify (\gs -> gs & actionSpaceMap . ix id . workersMap . ix pid %~ (+1))
+  return [FamilyGrowth]
+
+----------------------------------
+--------- Starting Player --------
+----------------------------------
+
+runStartingPlayer :: GameStateT ActionPrimitives
+runStartingPlayer = do
+  gs <- get
+  let pid = currentPlayer gs ^. playerId
+  put (gs & nextStartingPlayer .~ pid)
+  return [StartingPlayer]
 
 setPhase :: Phase -> GameState -> GameState
 setPhase phase gs = gs { _phase = phase }
@@ -21,10 +45,11 @@ drawNextRoundCard gs =
   then
     error "No more actions in the future map. Is the game over?"
   else
-    let as = head $ _futureActionSpaces gs
-        asid = _actionSpaceId as
-        asm' = M.insert asid as $ _actionSpaceMap gs in
-      gs { _actionSpaceMap = asm' }
+    let (f : fs) = _futureActionSpaces gs
+        id = _actionSpaceId f
+        asm' = M.insert id f $ _actionSpaceMap gs in
+      gs & actionSpaceMap .~ asm'
+         & futureActionSpaces .~ fs
 
 replenish :: GameState -> GameState
 replenish gs =
@@ -37,29 +62,12 @@ replenish gs =
         Nothing -> as
         Just r  -> as { _resources = combineThings r (_resources as) }
 
-harvestFields :: Player -> Player
-harvestFields p =
-  let fields = (_fields . _board) p                 -- p ^. PD.board . PD.fields
-      (gs, vs, fields') = foldl harvestField (0, 0, []) fields
-      board' = (_board p) { _fields = fields' } in
-  p { _board = board' }
-  where
-    harvestField :: (Int, Int, [(Space, Maybe Crop)]) -> (Space, Maybe Crop) -> (Int, Int, [(Space, Maybe Crop)])
-    harvestField (gs', vs', fields'') (s, maybeCrop) =
-      case maybeCrop of
-        Nothing -> (gs', vs', fields'')
-        Just (rt, n) ->
-          let field = (s, if n > 1 then Just (rt, n - 1) else Nothing) in
-          case rt of
-            Grain -> (gs' + 1, vs', field : fields'')
-            Veges -> (gs', vs' + 1, field : fields'')
-
 returnWorkersHome :: GameState -> GameState
 returnWorkersHome gs =
   let (actionSpaceMap', workersMap') = M.foldlWithKey removeWorkers (M.empty, M.empty) $ _actionSpaceMap gs
       players' = map (returnWorkers workersMap') $ _players gs in
   gs { _players = players' } { _actionSpaceMap = actionSpaceMap' }
-  -- where
+
 removeWorkers :: (ActionSpaceMap, PlayerCountMap) -> ActionSpaceId -> ActionSpace -> (ActionSpaceMap, PlayerCountMap)
 removeWorkers (asm, pcm) id as =
   let pcm' = M.unionWith (+) pcm $ _workersMap as

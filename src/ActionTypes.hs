@@ -1,8 +1,10 @@
 module ActionTypes where
 
+import Control.Monad.State
 import qualified Data.Map as M
 
 import Types.BasicGameTypes
+import Utils.Selection
 
 -- How to handle actions that have a Cost (in resources) to perform them? Some actions have a fixed cost, but that
 -- cost can be modified by cards. Some cards reduce the cost by some amount. Other cards changed the cost to a new fixed cost.
@@ -67,14 +69,16 @@ allConditions fs gs = all (\f -> f gs) fs
 
 ifNoWorkers :: ActionSpaceId -> ActionAllowedFunc
 ifNoWorkers asId gs =
-  let pid = _playerId $ (head . _players) gs
-      as =  _actionSpaceMap gs M.! asId in
+  let as = _actionSpaceMap gs M.! asId in
   M.null $ _workersMap as
 
 ifHaveResources :: Resources -> ActionAllowedFunc
 ifHaveResources rs gs =
   let ps = _personalSupply $ currentPlayer gs in
   all (\r -> getAmountInPersonalSupply (fst r) ps >= snd r) rs
+
+isRound :: Round -> ActionAllowedFunc
+isRound r gs = _round gs >= r
 
 getAmountInPersonalSupply :: ResourceType -> PersonalSupply -> Int
 getAmountInPersonalSupply Food  = _food
@@ -87,3 +91,18 @@ getAmountInPersonalSupply (Material Stone) = _stone
 
 alwaysAllowed :: ActionAllowedFunc
 alwaysAllowed _ = True
+
+optionalDoGS :: String -> a -> GameStateT a -> GameStateT a
+optionalDoGS prompt nope action = do
+  lift $ putStrLn prompt
+  yes <- lift $ getNextSelection yesNoOptions
+  if yes then action
+         else return nope
+
+optionalDoIO :: String -> a -> IO a -> IO a
+optionalDoIO prompt nope action = do
+  putStrLn prompt
+  yes <- getNextSelection yesNoOptions
+  if yes then action
+         else return nope
+         
