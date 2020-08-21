@@ -42,6 +42,7 @@ runPlayOccupation = do
 
 runPlayMajorOrMinorImprovement :: GameStateT ActionPrimitives
 runPlayMajorOrMinorImprovement = do
+  lift $ putStrLn "Would you like to play a Major or Minor improvement?"
   let options = [("Major", 0), ("Minor", 1)]
   choice <- lift $ getNextSelection options
   case choice of

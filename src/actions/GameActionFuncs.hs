@@ -4,6 +4,7 @@ import qualified Data.Map as M
 
 import Types.BasicGameTypes
 import ActionTypes
+import Actions.AutomaticActions
 import Actions.ResourceActions
 import Actions.BoardActions
 import Actions.CardActions
@@ -55,8 +56,8 @@ fixedActionSpaces =
   , ("Take Reed", Right takeResourcesAction, ifNoWorkers, Just (Material Reed, 1), [FamilyGame, NormalRules])
   , ("Fishing", Right takeResourcesAction, ifNoWorkers, Just (Food, 1), [FamilyGame, NormalRules])
   , ("Build room(s) and/or Build Stable(s)", Left runBuildRoomAndOrStables, meetsOneOrTheOtherCondition (buildRoomConditions, buildStablesConditions), Nothing, [FamilyGame, NormalRules])
-  , ("Starting Player and Storehouse", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame])
-  , ("Starting Player and/or 1 Minor Improvement", Right takeResourcesAction, ifNoWorkers, Nothing, [NormalRules])
+  , ("Starting Player and Storehouse", Right runStartingPlayerAndStorehouse, ifNoWorkers, Nothing, [FamilyGame])
+  , ("Starting Player and/or 1 Minor Improvement", Right runStartingPlayerAndOrMinorImprovement, ifNoWorkers, Nothing, [NormalRules])
   , ("Take 1 Grain", Left runTakeGrain, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
   , ("Plow 1 Field", Left runPlowFieldAction, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
   , ("Build Stable and/or Bake bread", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame])
@@ -83,7 +84,7 @@ actionSpaceCards =
   , ("1 Occupation", Left runPlayOccupation, ifNoWorkers, Nothing, [(NormalRules, 4)])
 
   , ("Take 1 Sheep and Food or 1 Boar or Pay 1 food for 1 Cattle", Left runTakeSheepBoarOrCattle, ifNoWorkers, Nothing, [(FamilyGame, 5), (NormalRules, 5)])
-  , ("Take 2 different Building Resources or, from Round 5, Family growth", Left runTake2DifferentBuildingResourcesOrFamilyGrowth, ifNoWorkers, Nothing, [(FamilyGame, 5)])
+  , ("Take 2 different Building Resources or, from Round 5, Family growth", Left runTake2DifferentBuildingResourcesOrFamilyGrowth, familyGrowthConditions, Nothing, [(FamilyGame, 5)])
   , ("Build 1 Room or Traveling Players", Right runBuildRoomOrTravelingPlayers, ifNoWorkers, Just (Food, 1), [(FamilyGame, 5), (NormalRules, 5)])
   , ("Take Reed. In addition, take 1 Stone and 1 Wood", Left runTakeReedand1Stoneand1Wood, ifNoWorkers, Just (Material Reed, 1), [(FamilyGame, 5), (NormalRules, 5)])
   , ("Take Wood", Right takeResourcesAction, ifNoWorkers, Just (Material Wood, 4), [(FamilyGame, 5), (NormalRules, 5)])
@@ -102,7 +103,7 @@ roundCards =
     ],
 
   -- Stage 2 cards
-    [ ("After Family growth also 1 Minor Improvement", Left noop, ifNoWorkers, Nothing)
+    [ ("After Family growth also 1 Minor Improvement", Left familyGrowthAndMinorImprovement, familyGrowthConditions, Nothing)
     , ("Take Stone", Right takeResourcesAction, ifNoWorkers, Just (Material Stone, 1))
     , ("After Renovation also 1 Major or Minor Improvement", Left afterRenovationAlsoMajorOrMinor, renovateConditions, Nothing)
     ],
@@ -118,12 +119,12 @@ roundCards =
     ],
 
   -- Stage 5 cards
-    [ ("Family growth even without space in your house", Left noop, ifNoWorkers, Nothing)
-    , ("Plow 1 Field and/or Sow", Left noop, ifNoWorkers, Nothing)
+    [ ("Family growth even without space in your house", Left runFamilyGrowth, ifNoWorkers, Nothing)
+    , ("Plow 1 Field and/or Sow", Left runPlowAndOrSow, ifNoWorkers, Nothing)
     ],
 
   -- Stage 6 card
-    [ ("After Renovation also Fences", Left noop, ifNoWorkers, Nothing)
+    [ ("After Renovation also Fences", Left renovateAndFences, ifNoWorkers, Nothing)
     ]
   ]
 

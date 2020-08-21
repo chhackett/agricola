@@ -244,13 +244,14 @@ showWorkers pcm =
 $(makeLenses ''ActionSpace)
 
 instance Show GameState where
-  show (GameState round phase players actions futureActions _ majors _ _ _) =
+  show (GameState round phase players actions futureActions _ majors _ _ nextStart) =
     "GameState: Round: " ++ show round ++
     "\n           Phase: " ++ show phase ++
     "\n           CurrentPlayer: " ++ _name (head players) ++
     "\n           Players: " ++ foldl (\s p -> s ++ show p ++ "\n") "" players ++
     "\n           Available Action Spaces: " ++ showActions actions ++
-    "\n           Available Major Improvements: " ++ show majors
+    "\n           Available Major Improvements: " ++ show majors ++
+    "\n           Next Start Player: " ++ show nextStart
 
 showActions :: ActionSpaceMap -> String
 showActions asm =

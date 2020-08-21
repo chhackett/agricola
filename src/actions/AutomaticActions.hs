@@ -3,13 +3,29 @@ module Actions.AutomaticActions where
 import Control.Monad.State
 import Control.Lens
 import qualified Data.Map as M
+import Data.List
 
 import Types.BasicGameTypes
 import Utils.ListUtils
+import ActionTypes
+import Actions.CardActions
 
 ----------------------------------
 ---------- Family Growth ---------
 ----------------------------------
+
+familyGrowthConditions :: ActionSpaceId -> ActionAllowedFunc
+familyGrowthConditions id =
+  allConditions [ifNoWorkers id, haveExtraRoom]
+  where
+    haveExtraRoom :: GameState -> Bool
+    haveExtraRoom gs = length (currentPlayer gs ^. board . houses) > currentPlayer gs ^. workers
+
+familyGrowthAndMinorImprovement :: GameStateT ActionPrimitives
+familyGrowthAndMinorImprovement = do
+  result <- runFamilyGrowth
+  result' <- runPlayMinorImprovement
+  return (result ++ result')
 
 runFamilyGrowth :: GameStateT ActionPrimitives
 runFamilyGrowth = do
@@ -18,17 +34,6 @@ runFamilyGrowth = do
       pid = currentPlayer gs ^. playerId
   modify (\gs -> gs & actionSpaceMap . ix id . workersMap . ix pid %~ (+1))
   return [FamilyGrowth]
-
-----------------------------------
---------- Starting Player --------
-----------------------------------
-
-runStartingPlayer :: GameStateT ActionPrimitives
-runStartingPlayer = do
-  gs <- get
-  let pid = currentPlayer gs ^. playerId
-  put (gs & nextStartingPlayer .~ pid)
-  return [StartingPlayer]
 
 setPhase :: Phase -> GameState -> GameState
 setPhase phase gs = gs { _phase = phase }

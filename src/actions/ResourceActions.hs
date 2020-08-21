@@ -10,8 +10,39 @@ import qualified Data.Map as M
 import Types.BasicGameTypes
 import Actions.BoardActions
 import Actions.AutomaticActions
+import Actions.CardActions
 import Utils.ListUtils
 import Utils.Selection
+
+----------------------------------
+----- Starting Player Actions ----
+----------------------------------
+
+runStartingPlayerAndStorehouse :: ActionSpaceId -> GameStateT ActionPrimitives
+runStartingPlayerAndStorehouse id = do
+  runStartingPlayer
+  result <- takeResourcesAction id
+  return (StartingPlayer : result)
+
+runStartingPlayerAndOrMinorImprovement :: ActionSpaceId -> GameStateT ActionPrimitives
+runStartingPlayerAndOrMinorImprovement id = do
+  runStartingPlayer
+  result <- runPlayMinorImprovement
+  return (StartingPlayer : result)
+
+runStartingPlayer :: GameStateT ActionPrimitives
+runStartingPlayer = do
+  gs <- get
+  let pid = currentPlayer gs ^. playerId
+  put (gs & nextStartingPlayer .~ pid)
+  return [StartingPlayer]
+
+changeStartingPlayer :: GameState -> GameState
+changeStartingPlayer gs =
+  case find (\p -> _playerId p == _nextStartingPlayer gs) $ _players gs of
+    Nothing -> error "Can't find player"
+    Just p' -> let ps = filter (\p'' -> _playerId p'' /= _playerId p') $ _players gs in
+               gs { _players = p':ps }
 
 -------------------------------
 ------- Choose 1 Resource -----

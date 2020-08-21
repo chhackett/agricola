@@ -115,6 +115,12 @@ afterRenovationAlsoMajorOrMinor = do
   result' <- runPlayMajorOrMinorImprovement
   return (result ++ result')
 
+renovateAndFences :: GameStateT ActionPrimitives
+renovateAndFences = do
+  result <- renovateHouse
+  result' <- runFencesAction
+  return (result ++ result')
+
 -----------------------------
 ------- RenovateHouse -------
 -----------------------------
@@ -128,6 +134,18 @@ renovateHouse = do
            & players . ix 0 . personalSupply . (if m == WoodHouse then clay else stone) -~ n
            & players . ix 0 . personalSupply . reed -~ 1
   return [RenovateHouse]
+
+runPlowAndOrSow :: GameStateT ActionPrimitives
+runPlowAndOrSow = do
+  lift $ putStrLn "Would you like to plow, sow, or both?"
+  choice <- lift $ getNextSelection $ oneOrBothOptions "Plow" "Sow"
+  case choice of
+    First  -> runPlowFieldAction
+    Second -> runSowAction
+    Both   ->
+      do result <- runPlowFieldAction
+         result' <- runSowAction
+         return (result ++ result')
 
 -----------------------------
 --------- Plow1Field --------

@@ -109,6 +109,7 @@ doStartRoundPhase = do
   let desc = _description . head $ gs ^. futureActionSpaces
   lift $ putStrLn $ "The next card is: " ++ desc ++ "\n"
   modify drawNextRoundCard
+  modify changeStartingPlayer
   -- check for additional actions (ex: players getting resources)
 
 doReplenishPhase :: GameStateT ()
