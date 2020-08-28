@@ -3,7 +3,9 @@ module ActionTypes where
 import Control.Monad.State
 import qualified Data.Map as M
 
+import Types.BasicTypes
 import Types.BasicGameTypes
+import Types.ResourceTypes
 import Utils.Selection
 
 -- How to handle actions that have a Cost (in resources) to perform them? Some actions have a fixed cost, but that
@@ -46,26 +48,18 @@ data Who =
   AnotherPlayer
   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
-newtype Cost = Cost Resources
-
-data Number =
-  Any  |   -- Zero or more
-  Some |   -- One or more
-  Zero |   -- Exactly 0
-  One  |   -- Exactly 1
-  Two  |   -- Exactly 2
-  All      -- All of the things
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
-data BooleanOp = And | Or | Xor
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
 -----------------------------------------------
 -- Basic action allowed function definitions --
 -----------------------------------------------
 
 allConditions :: [ActionAllowedFunc] -> ActionAllowedFunc
 allConditions fs gs = all (\f -> f gs) fs
+
+anyConditions :: [ActionAllowedFunc] -> ActionAllowedFunc
+anyConditions fs gs = any (\f -> f gs) fs
+
+meetsOneOrTheOtherCondition :: (ActionSpaceId -> ActionAllowedFunc, ActionSpaceId -> ActionAllowedFunc) -> ActionSpaceId -> ActionAllowedFunc
+meetsOneOrTheOtherCondition (a, b) id gs = any (\f -> f id gs) [a, b]
 
 ifNoWorkers :: ActionSpaceId -> ActionAllowedFunc
 ifNoWorkers asId gs =

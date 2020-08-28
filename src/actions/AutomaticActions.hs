@@ -5,6 +5,7 @@ import Control.Lens
 import qualified Data.Map as M
 import Data.List
 
+import Types.BasicTypes
 import Types.BasicGameTypes
 import Utils.ListUtils
 import ActionTypes
@@ -24,7 +25,7 @@ familyGrowthConditions id =
 familyGrowthAndMinorImprovement :: GameStateT ActionPrimitives
 familyGrowthAndMinorImprovement = do
   result <- runFamilyGrowth
-  result' <- runPlayMinorImprovement
+  result' <- playMinorImprovement
   return (result ++ result')
 
 runFamilyGrowth :: GameStateT ActionPrimitives

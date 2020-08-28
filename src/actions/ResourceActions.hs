@@ -7,6 +7,8 @@ import Control.Monad.State
 import Data.List
 import qualified Data.Map as M
 
+import Types.ResourceTypes
+import Types.BasicTypes
 import Types.BasicGameTypes
 import Actions.BoardActions
 import Actions.AutomaticActions
@@ -27,7 +29,7 @@ runStartingPlayerAndStorehouse id = do
 runStartingPlayerAndOrMinorImprovement :: ActionSpaceId -> GameStateT ActionPrimitives
 runStartingPlayerAndOrMinorImprovement id = do
   runStartingPlayer
-  result <- runPlayMinorImprovement
+  result <- playMinorImprovement
   return (StartingPlayer : result)
 
 runStartingPlayer :: GameStateT ActionPrimitives

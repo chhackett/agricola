@@ -5,6 +5,7 @@ import Control.Monad.State
 import Control.Lens
 
 import Types.BasicGameTypes
+import Types.ResourceTypes
 import Actions.ResourceActions
 import Utils.ListUtils
 import Utils.Selection

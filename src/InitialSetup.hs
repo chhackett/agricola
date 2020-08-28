@@ -5,7 +5,9 @@ import qualified Data.Map as M
 import System.Random
 import System.Random.Shuffle
 
+import Types.BasicTypes
 import Types.BasicGameTypes
+import Types.ResourceTypes
 import Types.CardDeclarations
 import ActionTypes
 import Actions.GameActionFuncs
@@ -31,11 +33,10 @@ initGameState g names numPlayers mode =
             0
 
 -- Want to draw seven random cards, not repeating any
-getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a]
-getSevenRandoms g =
-  let es = [minBound .. maxBound]
-      l  = length es in
-  take 7 $ shuffle' es l g
+getSevenRandoms :: (RandomGen g, Enum a, Bounded a) => g -> [a] -> [a]
+getSevenRandoms g xs =
+  let l  = length xs in
+  take 7 $ shuffle' xs l g
 
 getPlayers :: (RandomGen g) => g -> [String] -> Players
 getPlayers g names =
@@ -46,8 +47,9 @@ getPlayers g names =
     build (g', pid, ps) name =
       let (g1, g2) = split g'
           (g3, g4) = split g1
-          occupations = getSevenRandoms g2 :: OccupationTypes
-          improvements = getSevenRandoms g3 :: MinorImprovementTypes
+          -- allOccupations = [minBound .. maxBound] :: OccupationTypes
+          occupations = getSevenRandoms g2 (filter (isOccupationAllowed $ length names) [minBound .. maxBound]) :: OccupationTypes
+          improvements = getSevenRandoms g3 [minBound .. maxBound] :: MinorImprovementTypes
           supply = PersonalSupply 3 0 0 0 0 0 0
           player = Player pid name (Board ([(0,0),(0,1)], WoodHouse) Nothing [] [] []) 2 supply (occupations, improvements) ([], [], []) 0 in
       (g4, pid + 1, player : ps)

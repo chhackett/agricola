@@ -8,64 +8,9 @@ import qualified Data.Map as M
 import Control.Monad.State
 import Control.Lens as L
 
+import Types.BasicTypes
+import Types.ResourceTypes
 import Types.CardDeclarations
-
-------------------------------------------
---------- Resource and Basic Data --------
-------------------------------------------
-
-type Round = Int
-type Stage = Int
-numRounds = 14 :: Round
-numStages = 6 :: Stage
-
-type NumPlayers = Int
-
-type NumWorkers = Int
-type PlayerId = Int
-
-data HouseMaterial = WoodHouse | ClayHouse | StoneHouse
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
-data MaterialType = Wood | Clay | Reed | Stone
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
-data CropType = Grain | Veges
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
-data AnimalType = Sheep | Boar | Cattle
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
-
-data ResourceType =
-    Food
-  | Crop CropType
-  | Material MaterialType
-  | Animal AnimalType
-  deriving (Show, Read, Eq, Ord)
-
-type Resource = (ResourceType, Int)
-type Resources = [Resource]
-  
-type Crop = (CropType, Int)
-type Crops = [Crop]
-
-type Animal = (AnimalType, Int)
-type Animals = [Animal]
-
--- buildingMaterialTypes = [Wood, Clay, Reed, Stone]
--- animalTypes = [Sheep, Boar, Cattle]
--- cropTypes = [Grain, Veges]
-
-data Phase =
-    StartRound
-  | Replenish
-  | Work
-  | ReturnHome
-  | Harvest
-  | HarvestField
-  | HarvestFeed
-  | HarvestBreed
-  deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
 ------------------------------------------
 ----------- Player Data ------------------
@@ -249,9 +194,9 @@ instance Show GameState where
     "\n           Phase: " ++ show phase ++
     "\n           CurrentPlayer: " ++ _name (head players) ++
     "\n           Players: " ++ foldl (\s p -> s ++ show p ++ "\n") "" players ++
-    "\n           Available Action Spaces: " ++ showActions actions ++
+    "\n           All Action Spaces: " ++ showActions actions ++
     "\n           Available Major Improvements: " ++ show majors ++
-    "\n           Next Start Player: " ++ show nextStart
+    "\n           Next Round Starting Player: " ++ show nextStart
 
 showActions :: ActionSpaceMap -> String
 showActions asm =

@@ -6,8 +6,9 @@ import Control.Monad
 import Control.Monad.State
 import qualified Data.Map as M
 import System.Random
--- import Types.PlayerData as PD
+
 import ActionTypes
+import Types.BasicTypes
 import Types.BasicGameTypes
 import Actions.ResourceActions
 import Actions.BoardActions

@@ -23,7 +23,7 @@ hasThings = foldl hasThing False
 
 getAmount :: (Eq a) => a -> [(a, Int)] -> Int
 getAmount rt = foldl get 0
-  where get acc (rt', n) = if rt == rt' then n else acc
+  where get acc (rt', n) = if rt == rt' then n + acc else acc
 
 -- Return all elements in the second list that are not in the first
 difference :: Eq a => [a] -> [a] -> [a]

@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 import Data.List
 
 import Actions.CardActions
+import Types.ResourceTypes
 import Types.BasicGameTypes
 import Utils.Selection
 import Utils.ListUtils
@@ -22,11 +23,17 @@ import ActionTypes
 
 buildRoomConditions :: ActionSpaceId -> ActionAllowedFunc
 buildRoomConditions asId =
-  allConditions [ifNoWorkers asId, ifHaveEmptySpace, ifHaveResources [(Material Wood, 5), (Material Clay, 2)]]
+  allConditions [ifNoWorkers asId, ifHaveAdjacentEmptySpace, ifHaveResources [(Material Wood, 5), (Material Clay, 2)]]
 
 buildStablesConditions :: ActionSpaceId -> ActionAllowedFunc
 buildStablesConditions asId =
-  allConditions [ifNoWorkers asId, ifHaveEmptySpace, ifHaveResources [(Material Wood, 2)]]
+  allConditions [ifNoWorkers asId, ifHaveAdjacentEmptySpace, ifHaveResources [(Material Wood, 2)]]
+
+ifHaveAdjacentEmptySpace :: ActionAllowedFunc
+ifHaveAdjacentEmptySpace gs =
+  let b  = _board $ currentPlayer gs
+      hs = _houses b in
+  not . null $ getAdjacentEmptySpaces b (fst hs)
 
 runBuildRoomAndOrStables :: GameStateT ActionPrimitives
 runBuildRoomAndOrStables = do
@@ -94,7 +101,7 @@ addStable :: Board -> Space -> Board
 addStable b s = b & stables %~ ((s, Nothing) :)
 
 -------------------------------
--- Renovate + Major or Minor --
+----- Renovation actions ------
 -------------------------------
 
 renovateConditions :: ActionSpaceId -> ActionAllowedFunc
@@ -109,10 +116,10 @@ renovateConditions asId =
       currentPlayer gs ^. personalSupply .
         (if material == WoodHouse then clay else stone) >= n
 
-afterRenovationAlsoMajorOrMinor :: GameStateT ActionPrimitives
-afterRenovationAlsoMajorOrMinor = do
+renovationAndMajorOrMinor :: GameStateT ActionPrimitives
+renovationAndMajorOrMinor = do
   result <- renovateHouse
-  result' <- runPlayMajorOrMinorImprovement
+  result' <- playMajorOrMinorImprovement
   return (result ++ result')
 
 renovateAndFences :: GameStateT ActionPrimitives
@@ -120,10 +127,6 @@ renovateAndFences = do
   result <- renovateHouse
   result' <- runFencesAction
   return (result ++ result')
-
------------------------------
-------- RenovateHouse -------
------------------------------
 
 renovateHouse :: GameStateT ActionPrimitives
 renovateHouse = do
@@ -134,6 +137,19 @@ renovateHouse = do
            & players . ix 0 . personalSupply . (if m == WoodHouse then clay else stone) -~ n
            & players . ix 0 . personalSupply . reed -~ 1
   return [RenovateHouse]
+
+-----------------------------
+--------- Plow1Field --------
+-----------------------------
+
+plowFieldConditions :: ActionSpaceId -> ActionAllowedFunc
+plowFieldConditions id =
+  allConditions [ifNoWorkers id, haveEmptySpace]
+
+haveEmptySpace :: ActionAllowedFunc
+haveEmptySpace gs =
+  let b = currentPlayer gs ^. board in
+  not . null $ allEmptySpaces b
 
 runPlowAndOrSow :: GameStateT ActionPrimitives
 runPlowAndOrSow = do
@@ -146,10 +162,6 @@ runPlowAndOrSow = do
       do result <- runPlowFieldAction
          result' <- runSowAction
          return (result ++ result')
-
------------------------------
---------- Plow1Field --------
------------------------------
 
 runPlowFieldAction :: GameStateT ActionPrimitives
 runPlowFieldAction = do
@@ -170,7 +182,7 @@ getPlowFieldOptions :: Board -> Options Space
 getPlowFieldOptions b = buildSpaceOptions $ allEmptySpaces b
 
 addField :: Board -> Space -> Board
-addField b s = b & fields %~ ((s,Nothing):)
+addField b s = b & fields %~ ((s, Nothing):)
 
 -----------------------------
 ------ SowAndOrBakeBread ----
@@ -178,7 +190,13 @@ addField b s = b & fields %~ ((s,Nothing):)
 
 sowAndOrBakeBreadConditions :: ActionSpaceId -> ActionAllowedFunc
 sowAndOrBakeBreadConditions asId =
-  allConditions [ifNoWorkers asId, ifHaveEmptyField]
+  allConditions [ifNoWorkers asId, anyConditions [sowCondition, bakeBreadCondition]]
+
+sowCondition :: ActionAllowedFunc
+sowCondition gs =
+  let g = currentPlayer gs ^. personalSupply . grain
+      v = currentPlayer gs ^. personalSupply . veges in
+  ifHaveEmptyField gs && (g > 0 || v > 0)
   where
     ifHaveEmptyField :: ActionAllowedFunc
     ifHaveEmptyField gs = 
@@ -187,12 +205,22 @@ sowAndOrBakeBreadConditions asId =
                                     Nothing -> True
                                     Just n  -> False) fs
 
+bakeBreadCondition :: ActionAllowedFunc
+bakeBreadCondition gs =
+  let g = currentPlayer gs ^. personalSupply . grain
+      (_, minors, majors) = currentPlayer gs ^. activeCards in
+  g > 0 && not (null $ getBakingBreadCards (minors, majors))
+
 runSowAndOrBakeBreadAction :: GameStateT ActionPrimitives
 runSowAndOrBakeBreadAction = do
+  gs <- get
   results <- runSowAction
-  optionalDoGS "Would you like to bake bread too?" results $
-    do results' <- runBakeBreadAction
-       return (results ++ results')
+  if bakeBreadCondition gs
+  then
+    optionalDoGS "Would you like to bake bread too?" results $ do
+      results' <- runBakeBreadAction
+      return (results ++ results')
+  else return results
 
 runSowAction :: GameStateT ActionPrimitives
 runSowAction = do
@@ -227,13 +255,6 @@ sowField b s ct = b & fields %~ sow
         addCrop = if ct == Veges then Just (Veges, 2) else Just (Grain, 3)
 
 -----------------------------
---------- BakeBread ---------
------------------------------
-
-runBakeBreadAction :: GameStateT ActionPrimitives
-runBakeBreadAction = return []
-
------------------------------
 ----------- Fences ----------
 -----------------------------
 
@@ -257,7 +278,7 @@ runFencesAction = do
       pastures' = map (\ss -> (ss, Nothing)) $ calculatePastures b (es ++ es') -- use all edges on the board
   put $ gs & players . ix 0 . board . pastures .~ pastures'
            & players . ix 0 . personalSupply . wood .~ n - length es
-  return []
+  return [BuildFences]
 
 -- Given the board compute where the user selects to put the next fence piece
 getFenceChoices :: (Board, Int, Edges) -> IO Edges
@@ -416,9 +437,3 @@ isValidSpace s = s `elem` allSpaces
 
 buildSpaceOptions :: Spaces -> Options Space
 buildSpaceOptions = map (\s -> ("Location: " ++ show s, s))
-
-ifHaveEmptySpace :: ActionAllowedFunc
-ifHaveEmptySpace gs =
-  let b  = _board $ currentPlayer gs
-      hs = _houses b in
-  not . null $ getAdjacentEmptySpaces b (fst hs)

@@ -2,7 +2,9 @@ module Actions.GameActionFuncs where
 
 import qualified Data.Map as M
 
+import Types.BasicTypes
 import Types.BasicGameTypes
+import Types.ResourceTypes
 import ActionTypes
 import Actions.AutomaticActions
 import Actions.ResourceActions
@@ -59,7 +61,7 @@ fixedActionSpaces =
   , ("Starting Player and Storehouse", Right runStartingPlayerAndStorehouse, ifNoWorkers, Nothing, [FamilyGame])
   , ("Starting Player and/or 1 Minor Improvement", Right runStartingPlayerAndOrMinorImprovement, ifNoWorkers, Nothing, [NormalRules])
   , ("Take 1 Grain", Left runTakeGrain, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
-  , ("Plow 1 Field", Left runPlowFieldAction, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
+  , ("Plow 1 Field", Left runPlowFieldAction, plowFieldConditions, Nothing, [FamilyGame, NormalRules])
   , ("Build Stable and/or Bake bread", Right takeResourcesAction, ifNoWorkers, Nothing, [FamilyGame])
   , ("1 Occupation", Left runPlayOccupation, playOccupationConditions, Nothing, [NormalRules])
   , ("Day Laborer", Left runDayLaborer, ifNoWorkers, Nothing, [NormalRules])
@@ -98,14 +100,14 @@ roundCards =
   -- Stage 1 cards
   [ [ ("Sow and/or Bake bread", Left runSowAndOrBakeBreadAction, sowAndOrBakeBreadConditions, Nothing)
     , ("Fences", Left runFencesAction, fencesConditions, Nothing)
-    , ("Major or Minor Improvement", Left runPlayMajorOrMinorImprovement, ifNoWorkers, Nothing)
+    , ("Major or Minor Improvement", Left playMajorOrMinorImprovement, ifNoWorkers, Nothing)
     , ("Take Sheep", Right takeResourcesAction, ifNoWorkers, Just (Animal Sheep, 1))
     ],
 
   -- Stage 2 cards
     [ ("After Family growth also 1 Minor Improvement", Left familyGrowthAndMinorImprovement, familyGrowthConditions, Nothing)
     , ("Take Stone", Right takeResourcesAction, ifNoWorkers, Just (Material Stone, 1))
-    , ("After Renovation also 1 Major or Minor Improvement", Left afterRenovationAlsoMajorOrMinor, renovateConditions, Nothing)
+    , ("After Renovation also 1 Major or Minor Improvement", Left renovationAndMajorOrMinor, renovateConditions, Nothing)
     ],
 
   -- Stage 3 cards
@@ -127,9 +129,3 @@ roundCards =
     [ ("After Renovation also Fences", Left renovateAndFences, ifNoWorkers, Nothing)
     ]
   ]
-
-noop :: GameStateT ActionPrimitives
-noop = return []
-
-meetsOneOrTheOtherCondition :: (ActionSpaceId -> ActionAllowedFunc, ActionSpaceId -> ActionAllowedFunc) -> ActionSpaceId -> ActionAllowedFunc
-meetsOneOrTheOtherCondition (a, b) id gs = any (\f -> f id gs) [a, b]
