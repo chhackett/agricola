@@ -44,34 +44,45 @@ type Edges = [Edge]
 
 type Players = [Player]
 
+-- 1: List of all spaces inside the pasture, 2: The animal type, and how many, 3: List of spaces containing a stable inside this pasture
+type Pasture = (Spaces, Maybe Animal, Spaces)
+type Pastures = [Pasture]
+
 data Board = Board
-  { _houses :: (Spaces, HouseMaterial)
-  , _houseAnimal :: Maybe AnimalType    -- can only have 1 animal in your house, so specify the type only
-  , _fields :: [(Space, Maybe Crop)]
-  , _pastures :: [(Spaces, Maybe Animal)]
-  , _stables :: [(Space, Maybe Animal)] }
+  { _houses          :: (Spaces, HouseMaterial)
+  , _houseAnimal     :: Maybe AnimalType    -- can only have 1 animal in your house, so specify the type only
+  , _fields          :: [(Space, Maybe Crop)]
+  , _pastures        :: Pastures
+  , _unfencedStables :: [(Space, Maybe Animal)] }
   deriving (Show, Read, Eq, Ord)
 
 data PersonalSupply = PersonalSupply
-  { _food :: Int
+  { _food  :: Int
   , _grain :: Int
   , _veges :: Int
-  , _wood :: Int
-  , _clay :: Int
-  , _reed :: Int
+  , _wood  :: Int
+  , _clay  :: Int
+  , _reed  :: Int
   , _stone :: Int }
   deriving (Show, Read, Eq, Ord, Bounded)
 
 data Player = Player
-  { _playerId :: PlayerId
-  , _name :: String
-  , _board :: Board
-  , _workers :: NumWorkers
+  { _playerId       :: PlayerId
+  , _name           :: String
+  , _board          :: Board
+  , _workers        :: NumWorkers
   , _personalSupply :: PersonalSupply
-  , _hand :: (OccupationTypes, MinorImprovementTypes)
-  , _activeCards :: (OccupationTypes, MinorImprovementTypes, MajorImprovementTypes)
-  , _beggingCards :: Int }
-  deriving (Show, Read)
+  , _hand           :: CardInfos -- occupations, minors
+  , _activeCards    :: CardInfos -- occupations, minors, majors
+  , _beggingCards   :: Int }
+  deriving (Read)
+
+instance Show Player where
+  show p = "\n  Name: " ++ _name p ++ "\n  Board: " ++ show (_board p) ++ "\n  NumWorkers: " ++ show (_workers p) ++ "\n  Supply: " ++ show (_personalSupply p) ++
+           "\n  Hand (Occupations): " ++ show (filter isOccupation $ _hand p) ++ "\n  Hand (Minors): " ++ show (filter isMinor $ _hand p) ++
+           "\n  Active Majors: " ++ show (filter isMajor $ _activeCards p) ++ 
+           "\n  Active Minors: " ++ show (filter isMinor $ _activeCards p) ++
+           "\n  Active Occupations: " ++ show (filter isOccupation $ _activeCards p) ++  "\n  BeggingCards: " ++ show (_beggingCards p)
 
 $(makeLenses ''Board)
 $(makeLenses ''PersonalSupply)
@@ -107,18 +118,20 @@ data ActionPrimitive =
   | PutResourcesOnCard ResourceType              -- Some actions say to put a resource on a particular action space or card (from general supply usually)
   | PayResources ResourceType                    -- pay the cost of some action, resources go back to general supply
   | GiveResourceToPlayer ResourceType            -- some cards require that you pay another player. Or it could be optional to gain a benefit
-  | PlayMajorImprovement MajorImprovementType
-  | ReturnMajorImprovement MajorImprovementType  -- major improvements can be put back for others to buy
-  | PlayOccupation OccupationType
-  | PlayMinorImprovement MinorImprovementType
+  | PlayMajorImprovement CardName
+  | ReturnMajorImprovement CardName              -- major improvements can be put back for others to buy
+  | PlayOccupation CardName
+  | PlayMinorImprovement CardName
+  | HarvestFields Crops
+  | BreedAnimals Animals
   deriving (Show, Read, Eq, Ord)
 
 type ActionPrimitives = [ActionPrimitive]
 
 -- After an action is evaluated, that last action primitive to be executed is supplied to determine which
 -- subsequent actions are allowed
-type ActionEvent = ActionPrimitives
-type ActionEvents = [ActionEvent]
+-- type ActionEvent = ActionPrimitive
+-- type ActionEvents = [ActionEvent]
 
 type Description = String
 
@@ -140,8 +153,8 @@ data GameState = GameState
   , _actionSpaceMap :: ActionSpaceMap
   , _futureActionSpaces :: [ActionSpace]
   , _actionSpaceRoundMap :: RoundActionSpaceIdMap
-  , _availableMajorImprovements :: MajorImprovementTypes
-  , _eventHistory :: ActionEvents
+  , _availableMajorImprovements :: CardInfos
+  , _eventHistory :: ActionPrimitives
   , _currentActionId :: ActionSpaceId
   , _nextStartingPlayer :: PlayerId }
 
@@ -152,6 +165,8 @@ type SimpleActionType = GameStateT ActionPrimitives
 type EitherActionType = Either SimpleActionType (ActionSpaceId -> SimpleActionType)
 
 type PlayerCountMap = M.Map PlayerId Int
+
+type ReservedResourceMap = M.Map PlayerId Resource
 
 -- To determine whether an action is allowed, the last action performed and the current game state are supplied
 type ActionAllowedFunc = GameState -> Bool
@@ -165,9 +180,12 @@ data ActionSpace = ActionSpace
   , _action :: SimpleActionType
   , _actionAllowed :: ActionAllowedFunc
   , _resources :: Resources
-  -- , _reservedResources :: Resource
+  -- , _reservedResources :: ReservedResourceMap
   , _workersMap :: PlayerCountMap
   }
+
+$(makeLenses ''ActionSpace)
+$(makeLenses ''GameState)
 
 type ActionSpaces = [ActionSpace]
 
@@ -185,8 +203,6 @@ showWorkers pcm =
   where
     toString :: (PlayerId, Int) -> String
     toString (pid, n) = show pid ++ ": " ++ show n
-
-$(makeLenses ''ActionSpace)
 
 instance Show GameState where
   show (GameState round phase players actions futureActions _ majors _ _ nextStart) =
@@ -206,8 +222,6 @@ showActions asm =
   where
     build :: ActionSpace -> String
     build as = "\n\t                         " ++ show as
-
-$(makeLenses ''GameState)
 
 -- The game has tokens of various types, and places on the board where tokens can be played. It would
 -- be helpful to have data types to represent these different areas/tokens. This can help when specifying the
@@ -236,18 +250,6 @@ $(makeLenses ''GameState)
 --   Field |
 --   ResourceToken ResourceType
 --   deriving (Show, Read, Eq, Ord)
-
-allSpaces :: Spaces
-allSpaces = [(x, y) | y <- [0 .. 2], x <- [0 .. 4]]
-
-allEdges :: Edges
-allEdges = allHorizontalEdges ++ allVerticalEdges
-
-allHorizontalEdges :: Edges
-allHorizontalEdges = [((x, y), (x + 1, y)) | x <- [0 .. 4], y <- [0 .. 3]]
-
-allVerticalEdges :: Edges
-allVerticalEdges = [((x, y), (x, y + 1)) | x <- [0 .. 5], y <- [0 .. 2]]
 
 currentPlayer :: GameState -> Player
 currentPlayer = head . _players

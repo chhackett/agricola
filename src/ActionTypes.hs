@@ -22,16 +22,14 @@ import Utils.Selection
 
 -- Question: Is an action allowed (right now)? Answer: Yes, if the conditions for that action are all met.
 
-data ActionCondition =
-  SimpleCondition When Who Cost |
-  ComplexCondition ActionCondition BooleanOp ActionCondition
+-- data ActionCondition =
+--   SimpleCondition When Who Cost |
+--   ComplexCondition ActionCondition BooleanOp ActionCondition
 
 data GameMode = FamilyGame | NormalRules
   deriving (Show, Read, Eq, Ord)
 
-data CompositeAction =
-  SimpleAction ActionPrimitive |
-  ComplexAction ActionPrimitive BooleanOp CompositeAction
+-- data Composite a = Simple a | Complex a BooleanOp Composite
 
 data When =
   AnyTime |

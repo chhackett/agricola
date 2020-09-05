@@ -3,10 +3,12 @@ module Actions.HarvestActions where
 import Control.Monad
 import Control.Monad.State
 import Control.Lens
+import Data.Maybe
 
 import Types.BasicGameTypes
 import Types.ResourceTypes
 import Actions.ResourceActions
+import Actions.BoardActions
 import Utils.ListUtils
 import Utils.Selection
 
@@ -62,4 +64,14 @@ runFeedFamily = do
 runBreedAnimals :: GameStateT ActionPrimitives
 runBreedAnimals = do
   gs <- get
-  return []
+  let b = currentPlayer gs ^. board
+      animals = getAllAnimals b
+      babies = filter (\(_, n') -> n' > 0) $ map (\(at, n) -> (at, n `div` 2)) animals
+  if null babies
+  then do
+    lift $ putStrLn "No animals bred this stage"
+    return [BreedAnimals []]
+  else do
+    b' <- lift $ placeNewAnimals babies b
+    put (gs & players . ix 0 . board .~ b')
+    return [BreedAnimals babies]

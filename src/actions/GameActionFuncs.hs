@@ -51,6 +51,37 @@ checkAllowed mode n ((mode', n'):xs) =
   (mode == mode' && n == n') || checkAllowed mode n xs
 checkAllowed mode n [] = False
 
+-- data FixedActionSpaceType =
+--   BuildRoomAndOrStables |
+--   StartingPlayerAndOrMinorImprovement |
+--   StartingPlayerAndStorehouse |
+--   TakeGrain |
+--   PlowField |
+--   BuildStableAndOrBakeBread |
+--   PlayOccupation |
+--   TakeWood |
+--   FixedTakeClay |
+--   TakeReed |
+--   Fishing
+--   deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
+-- data RoundCardType =
+--   SowAndOrBakeBread |
+--   TakeSheep |
+--   Fences |
+--   MajorOrMinorImprovement |
+--   AfterFamilyGrowthAlsoImprovement |
+--   AfterRenovationAlsoImprovement |
+--   TakeStoneStage2 |
+--   TakeStoneStage4 |
+--   TakeVege |
+--   TakeBoar |
+--   TakeCattle |
+--   PlowAndOrSow |
+--   FamilyGrowthWithoutRoom |
+--   AfterRenovationAlsoFences
+--   deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
 fixedActionSpaces :: [(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource, [GameMode])]
 fixedActionSpaces =
   [ ("Take Clay", Right takeResourcesAction, ifNoWorkers, Just (Material Clay, 1), [FamilyGame, NormalRules])

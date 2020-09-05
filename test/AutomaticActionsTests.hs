@@ -6,6 +6,8 @@ import Test.Tasty.HUnit
 import Control.Lens
 import Data.Map as M
 
+import Types.BasicTypes
+import Types.ResourceTypes
 import Types.BasicGameTypes
 import Actions.AutomaticActions
 
@@ -38,5 +40,5 @@ gameState =
 returnWorkersTests = testGroup "Return Workers Tests"
   [ testCase "Missing workers" $
       let result = returnWorkersHome gameState in
-      result ^. players . ix 0 . workers == 1 @?= True
+      currentPlayer result ^. workers == 1 @?= True
   ]

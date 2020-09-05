@@ -27,9 +27,6 @@ type PlayerId = Int
 
 type BonusPoints = Int
 
-data DeckType = Easy | Interactive | Komplex
-  deriving (Show, Read, Eq, Ord)
-
 type Bonus = Int
 
 data NumberOfTimes =

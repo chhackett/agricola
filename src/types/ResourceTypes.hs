@@ -27,8 +27,3 @@ type Crops = [Crop]
 
 type Animal = (AnimalType, Int)
 type Animals = [Animal]
-
-data Cost = CostResources Resources | CostOccs Int | CostImprovements Int
-  deriving (Show, Read, Eq, Ord)
-
-type Costs = [Cost]

@@ -9,8 +9,9 @@ import Data.Ord
 import BoardActionsTests
 import ResourceActionsTests
 import AutomaticActionsTests
+import CardActionsTests
 
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests" [resourceActionsTests, boardActionsTests, autoActionsTests]
+tests = testGroup "Tests" [resourceActionsTests, boardActionsTests, autoActionsTests, cardActionsTests]

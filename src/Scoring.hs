@@ -49,8 +49,8 @@ calculateScore p =
       let a = case p ^. board . houseAnimal of
                 Nothing  -> 0
                 Just at' -> if at == at' then 1 else 0
-          b = sum $ map (\(_, ma) -> countAnimals at ma) $ p ^. board . pastures
-          c = sum $ map (\(_, ma) -> countAnimals at ma) $ p ^. board . stables in
+          b = sum $ map (\(_, ma, _) -> countAnimals at ma) $ p ^. board . pastures
+          c = sum $ map (\(_, ma) -> countAnimals at ma) $ p ^. board . unfencedStables in
       a + b + c
 
     countAnimals :: AnimalType -> Maybe Animal -> Int

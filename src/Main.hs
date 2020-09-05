@@ -10,6 +10,7 @@ import System.Random
 import ActionTypes
 import Types.BasicTypes
 import Types.BasicGameTypes
+import Types.CardDeclarations
 import Actions.ResourceActions
 import Actions.BoardActions
 import Actions.AutomaticActions
@@ -47,8 +48,10 @@ main = do
   playerNames <- getPlayerNames
   putStrLn "What mode would you like to play?"
   mode <- getNextSelection [("Family Game", FamilyGame), ("Normal Rules", NormalRules)]
+  putStrLn "What deck would you like to use?"
+  deck <- getNextSelection [("Easy", Easy), ("Interactive", Interactive), ("Komplex", Komplex)]
   g <- getStdGen
-  (scores, finalState) <- runStateT playGame (initGameState g playerNames (length playerNames) mode)
+  (scores, finalState) <- runStateT playGame (initGameState g playerNames (length playerNames) mode deck)
   putStrLn $ "The final score is: " ++ show scores
 
 getPlayerNames :: IO [String]
@@ -130,14 +133,13 @@ doWorkPhase = do
   lift $ putStrLn $ "You have " ++ show n ++ " workers to place"
   lift $ putStrLn $ "Current gamestate:\n" ++ show gs
   nextActionId <- lift $ getNextSelection options
-  lift $ putStrLn $ "You selected: " ++ show nextActionId
   modify $ putCurrentPlayerWorkerOnActionSpace nextActionId
   modify (\gs -> gs & currentActionId .~ nextActionId)
   let as = _actionSpaceMap gs M.! nextActionId
   result <- _action as
+  modify $ addEventsToHistory result
   modify nextPlayer   -- go to the next player
   n' <- gets availableWorkers
-  lift $ putStrLn $ "You have " ++ show n' ++ " worker(s) left."
   when (n' > 0) doWorkPhase
 
 doReturnHomePhase :: GameStateT ()
@@ -157,17 +159,21 @@ doFieldPhase :: GameStateT ()
 doFieldPhase = do
   lift $ putStrLn "Harvesting fields"
   result <- runHarvestFields
+  modify $ addEventsToHistory result
   return ()
 
 doFeedPhase :: GameStateT ()
 doFeedPhase = do
   lift $ putStrLn "Feeding family"
   result <- runFeedFamily
+  modify $ addEventsToHistory result
   return ()
 
 doBreedPhase :: GameStateT ()
 doBreedPhase = do
   lift $ putStrLn "Breeding animals"
+  result <- runBreedAnimals
+  modify $ addEventsToHistory result
   return ()
 
 getAllowedActions :: GameState -> Options ActionSpaceId
@@ -195,3 +201,7 @@ showResources = M.foldl build ""
 
 nextPlayer :: GameState -> GameState
 nextPlayer gs = let p : ps = _players gs in gs & players .~ (ps ++ [p])
+
+addEventsToHistory :: ActionPrimitives -> GameState -> GameState
+addEventsToHistory ps gs =
+  let h = _eventHistory gs in gs & eventHistory .~ (ps ++ h)

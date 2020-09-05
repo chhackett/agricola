@@ -7,6 +7,7 @@ import Control.Monad.State
 import Data.List
 import qualified Data.Map as M
 
+import ActionTypes
 import Types.ResourceTypes
 import Types.BasicTypes
 import Types.BasicGameTypes
@@ -108,14 +109,14 @@ runTakeSheepBoarOrCattle :: GameStateT ActionPrimitives
 runTakeSheepBoarOrCattle = do
   gs <- get
   lift $ putStrLn "What would you like to do?"
-  choice <- lift $ getNextSelection ([("Take 1 Sheep + 1 Food", 1), ("Take 1 Boar", 2)] ++ 
-              if currentPlayer gs ^. personalSupply . food > 0 then [("Pay 1 Food for 1 Cattle", 3)] else [])
-  let (at, foodOp) =
-        case choice of
-          1 -> (Sheep, (+1))
-          2 -> (Boar,  (+0))
-          3 -> (Cattle, (`subtract` 1))
-  b' <- lift $ placeNewAnimals (at, 1) $ currentPlayer gs ^. board
+  at <- lift $ getNextSelection ([("Take 1 Sheep + 1 Food", Sheep), ("Take 1 Boar", Boar)] ++ 
+              if currentPlayer gs ^. personalSupply . food > 0 then [("Pay 1 Food for 1 Cattle", Cattle)] else [])
+  let foodOp =
+        case at of
+          Sheep  -> (+1)
+          Boar   -> (+0)
+          Cattle -> (`subtract` 1)
+  b' <- lift $ placeNewAnimals [(at, 1)] $ currentPlayer gs ^. board
   modify (\s -> s & players . ix 0 . personalSupply . food %~ foodOp
                   & players . ix 0 . board .~ b')
   return [TakeResources [(Animal at, 1)]]
@@ -186,7 +187,7 @@ runTakeVege :: GameStateT ActionPrimitives
 runTakeVege = do
   modify (\s -> s & players . ix 0 . personalSupply . veges %~ (+1))
   return [TakeResources [(Crop Veges, 1)]]
-  
+
 -------------------------------
 --------- TakeResources -------
 -------------------------------
@@ -214,28 +215,20 @@ giveResourcesToCurrentPlayer id gs = do
   where
     giveResourcesToPlayer :: Resources -> Player -> IO Player
     giveResourcesToPlayer [] p = return p
-    giveResourcesToPlayer ((rt, n) : rs) p = do
-      p' <- case rt of
-        Food           -> return $ giveResourceToPlayer (rt,n) p
-        Crop Grain     -> return $ giveResourceToPlayer (rt,n) p
-        Crop Veges     -> return $ giveResourceToPlayer (rt,n) p
-        Material Wood  -> return $ giveResourceToPlayer (rt,n) p
-        Material Clay  -> return $ giveResourceToPlayer (rt,n) p
-        Material Reed  -> return $ giveResourceToPlayer (rt,n) p
-        Material Stone -> return $ giveResourceToPlayer (rt,n) p
-        Animal Sheep   -> giveAnimalToPlayer (Sheep, n) p
-        Animal Boar    -> giveAnimalToPlayer (Boar, n) p
-        Animal Cattle  -> giveAnimalToPlayer (Cattle, n) p
-      giveResourcesToPlayer rs p'
-
-giveResourceToPlayer :: Resource -> Player -> Player
-giveResourceToPlayer (rt, n) p =
-  let supply = putResourceInSupply (rt, n) (_personalSupply p) in
-  p & personalSupply .~ supply
+    giveResourcesToPlayer ((rt, n) : rs) p =
+      case rt of
+        Food           -> return $ p & personalSupply . food +~ n
+        Crop Grain     -> return $ p & personalSupply . grain +~ n
+        Crop Veges     -> return $ p & personalSupply . veges +~ n
+        Material Wood  -> return $ p & personalSupply . wood +~ n
+        Material Clay  -> return $ p & personalSupply . clay +~ n
+        Material Reed  -> return $ p & personalSupply . reed +~ n
+        Material Stone -> return $ p & personalSupply . stone +~ n
+        Animal at      -> giveAnimalToPlayer (at, n) p
 
 giveAnimalToPlayer :: Animal -> Player -> IO Player
 giveAnimalToPlayer (at,n) p = do
-  b <- placeNewAnimals (at, n) (_board p)
+  b <- placeNewAnimals [(at, n)] (_board p)
   return (p & board .~ b)
 
 putCurrentPlayerWorkerOnActionSpace :: ActionSpaceId -> GameState -> GameState
@@ -258,59 +251,3 @@ addWorker actionId pid asm =
       case M.lookup pid wm of
         Nothing -> M.insert actionId (as { _workersMap = M.insert pid 1 wm }) asm
         Just n  -> M.insert actionId (as { _workersMap = M.insert pid (n + 1) wm }) asm
-
-putResourceInSupply :: Resource -> PersonalSupply -> PersonalSupply
-putResourceInSupply (rt, amount) ps
-  | rt == Food           = ps & food +~ amount
-  | rt == Crop Grain     = ps & grain +~ amount
-  | rt == Crop Veges     = ps & veges +~ amount
-  | rt == Material Wood  = ps & wood +~ amount
-  | rt == Material Clay  = ps & clay +~ amount
-  | rt == Material Reed  = ps & reed +~ amount
-  | rt == Material Stone = ps & stone +~ amount
-  | otherwise            = error "Can't use this function to store animals"
-
-removeResourceType :: ResourceType -> Resources -> Resources
-removeResourceType rt = filter (\(rt', _) -> rt /= rt')
-
---------------------------------
---------- Animal Storage -------
---------------------------------
-houseOption = 0
-pastureOption = 1
-stablesOption = 10
-
-placeNewAnimals :: Animal -> Board -> IO Board
-placeNewAnimals (at, n) b = do
-  putStrLn "Select where to put the new animals:"
-  let options = getAnimalStoreOptions b
-  location <- getNextSelection options
-  case location of
-    l | l == houseOption
-              -> return (b & houseAnimal ?~ at)
-      | l < stablesOption
-              -> do let (ss, _) = (b ^. pastures) !! (l - 1)     -- spaces the chosen pasture
-                        size = length ss
-                        hasStable = null (ss `intersect` allStables b)
-                        n' = min (if hasStable then 4*size else 2*size) n
-                    return (b & pastures . ix (l - pastureOption) . _2 ?~ (at, n'))
-      | l >= stablesOption
-              -> do let unfencedStables = getUnfencedStables (_stables b) (allPastureSpaces b)
-                        s = fst $ unfencedStables !! (l - stablesOption)
-                        mi = findIndex (\(s',_) -> s' == s) (_stables b)
-                    case mi of
-                        Nothing -> error "Can't find the stable"
-                        Just i  -> return (b & stables . ix i . _2 ?~ (at,1))
-      | otherwise -> error "Invalid selection"
-  where
-    getAnimalStoreOptions :: Board -> Options Int
-    getAnimalStoreOptions b =
-      let houseOption = ("In your house, containing: " ++ show (_houseAnimal b), 0)
-          pastureOptions = zipWith (\(ss, mAnimal) n -> ("In pasture: " ++ show ss ++ ", containing: " ++ show mAnimal, n)) (_pastures b) [pastureOption ..]
-          unfencedStables = getUnfencedStables (_stables b) (allPastureSpaces b)
-          stableOptions = zipWith (\(s, mAnimal) m -> ("In (unfenced) stable: " ++ show s ++ ", containing: " ++ show mAnimal, m)) unfencedStables [stablesOption .. ] in
-      houseOption : pastureOptions ++ stableOptions
-
-    getUnfencedStables :: [(Space, Maybe Animal)] -> Spaces -> [(Space, Maybe Animal)]
-    getUnfencedStables allStables ss =
-      filter (\(s, _) -> s `notElem` ss) allStables

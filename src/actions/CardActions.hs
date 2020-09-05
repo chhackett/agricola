@@ -2,6 +2,7 @@ module Actions.CardActions where
 
 import Control.Lens
 import Control.Monad.State
+import Data.List
 import qualified Data.Map as M
 
 import ActionTypes
@@ -26,19 +27,19 @@ playOccupationConditions asId =
     ifHaveEnoughFood :: ActionAllowedFunc
     ifHaveEnoughFood gs =
       let cp = currentPlayer gs
-          cards = cp ^. activeCards . _1 in
-      cp ^. personalSupply . food >= if null cards then 1 else 2
+          occupations = filter isOccupation $ cp ^. activeCards in
+      cp ^. personalSupply . food >= if null occupations then 1 else 2
 
 runPlayOccupation :: GameStateT ActionPrimitives
 runPlayOccupation = do
   gs <- get
-  let cards = gs ^. players . ix 0 . activeCards . _1
-      inhand = gs ^. players . ix 0 . hand . _1
+  let cards = gs ^. players . ix 0 . activeCards
+      inhand = filter isOccupation $ gs ^. players . ix 0 . hand
       options = map (\h -> (show h, h)) inhand
   card <- lift $ getNextSelection options
-  put (gs & players . ix 0 . activeCards . _1 .~ (card:cards)
+  put (gs & players . ix 0 . activeCards .~ (card:cards)
           & players . ix 0 . personalSupply . food %~ subtract (if length inhand == 7 then 1 else 2))
-  return [PlayOccupation card]
+  return [PlayOccupation $ _cardName card]
 
 ---------------------------------------
 -- Play a Major Or Minor Improvement --
@@ -61,48 +62,18 @@ playMinorImprovement :: GameStateT ActionPrimitives
 playMinorImprovement = do
   gs <- get
   let p = currentPlayer gs
-      inhand = p ^. hand . _2
-      options = map (\h -> (show h, h)) $ filter (canAfford p) inhand
-  card <- lift $ getNextSelection options
-  let newhand = filter (/= card) inhand
-  put (gs & players . ix 0 . activeCards . _2 %~ (card:)
-          & players . ix 0 . hand . _2 .~ newhand )
-  return [PlayMinorImprovement card]
-  where
-    canAfford :: Player -> MinorImprovementType -> Bool
-    canAfford p minorType =
-      let c = minorImprovementsMap M.! minorType in
-      case c of
-        MinorImprovement _ costs _ _ -> haveCosts p costs
-        _ -> error "Invalid card type"
-
-haveCosts :: Player -> Costs -> Bool
-haveCosts p = all (haveCost p)
-
-haveCost :: Player -> Cost -> Bool
-haveCost p c =
-  case c of
-    CostResources rs   -> haveResources p rs
-    CostOccs n         -> n < length (p ^. activeCards . _1)
-    CostImprovements m -> m < length (p ^. activeCards . _2)
-
-haveResources :: Player -> Resources -> Bool
-haveResources p = all haveResource
-  where
-    haveResource :: Resource -> Bool
-    haveResource (rt, n) =
-      case rt of
-        Food        -> n < p ^. personalSupply . food
-        Crop ct     -> n < p ^. personalSupply . (if ct == Grain then grain else veges)
-        Material mt -> n < p ^. personalSupply . getMaterialSelector mt
-        Animal at   -> n < getAnimalQuantity (_board p) at
-
-    getMaterialSelector mt =
-      case mt of
-        Wood  -> wood
-        Clay  -> clay
-        Reed  -> reed
-        Stone -> stone
+      minors = filter (typeFilter Minor) $ p ^. hand
+      options = map (\h -> (show h, h)) $ filter (canPlay p) minors
+  if null options
+  then do
+    lift $ putStrLn "You can't afford any minor improvements at this time"
+    return []
+  else do
+    card <- lift $ getNextSelection options
+    let newhand = filter (/= card) minors
+    put (gs & players . ix 0 . activeCards %~ (card:)
+            & players . ix 0 . hand .~ newhand )
+    return [PlayMinorImprovement $ _cardName card]
 
 ----------------------------------
 ---- Play a Major Improvement ----
@@ -113,19 +84,91 @@ playMajorImprovement = do
   gs <- get
   let oldMajors = gs ^. availableMajorImprovements
       p = currentPlayer gs
-      options = map (\c -> (show c, c))  $ filter (canAfford p) oldMajors
-  card <- lift $ getNextSelection options
-  let newMajors = filter (/= card) oldMajors
-  put (gs & players . ix 0 . activeCards . _3 %~ (card:)
-          & availableMajorImprovements .~ newMajors )
-  return [PlayMajorImprovement card]
+      options = map (\c -> (show $ _cardName c, c)) $ filter (canPlay p) oldMajors
+  if null options
+  then do
+    lift $ putStrLn "You can't afford any major improvements at this time"
+    return []
+  else do
+    card <- lift $ getNextSelection options
+    let newMajors = delete card oldMajors
+    gs' <- lift $ payCost (_cost card) gs
+    put (gs' & players . ix 0 . activeCards %~ (card:)
+             & availableMajorImprovements .~ newMajors)
+    return [PlayMajorImprovement $ _cardName card]
+
+-----------------------------
+--- Supporting functions ----
+-----------------------------
+
+canPlay :: Player -> CardInfo -> Bool
+canPlay p card = haveCost p (_cost card)
+
+haveCost :: Player -> Cost -> Bool
+haveCost p c =
+  case c of
+    Free             -> True
+    Cost rs          -> haveResources p rs
+    Return name      -> name `elem` map _cardName (p ^. activeCards)
+    EitherCost c1 c2 -> any (haveCost p) [c1, c2]
+    AllCosts cs      -> all (haveCost p) cs
+
+haveResources :: Player -> Resources -> Bool
+haveResources p = all haveResource
   where
-    canAfford :: Player -> MajorImprovementType -> Bool
-    canAfford p majorType =
-      let card = majorImprovementsMap M.! majorType in
-      case card of
-        MajorImprovement _ cost _ -> haveCost p cost
-        _ -> error "Invalid card type"
+    haveResource :: Resource -> Bool
+    haveResource (rt, n) =
+      case rt of
+        Food        -> n <= p ^. personalSupply . food
+        Crop ct     -> n <= p ^. personalSupply . (if ct == Grain then grain else veges)
+        Material mt -> n <= p ^. personalSupply . getMaterialSelector mt
+        Animal at   -> n <= getAnimalQuantity (_board p) at
+
+    getMaterialSelector mt =
+      case mt of
+        Wood  -> wood
+        Clay  -> clay
+        Reed  -> reed
+        Stone -> stone
+
+payCost :: Cost -> GameState -> IO GameState
+payCost c gs =
+  case c of
+    Free             -> return gs
+    Cost rs          -> return $ payResources gs rs
+    Return name      -> return $ returnCard gs name
+    EitherCost c1 c2 -> do
+      putStrLn "Choose which cost you would like to pay:"
+      c' <- getNextSelection [(show c1, c1), (show c2, c2)]
+      payCost c' gs
+    AllCosts cs      -> payCosts cs gs
+
+payCosts :: Costs -> GameState -> IO GameState
+payCosts cs gs = foldM (flip payCost) gs cs
+
+payResources :: GameState -> Resources -> GameState
+payResources gs [] = gs
+payResources gs ((rt, n):rs) =
+  let p = currentPlayer gs
+      p' = case rt of
+        Food           -> p & personalSupply . food -~ n
+        Crop Grain     -> p & personalSupply . grain -~ n
+        Crop Veges     -> p & personalSupply . veges -~ n
+        Material Wood  -> p & personalSupply . wood -~ n
+        Material Clay  -> p & personalSupply . clay -~ n
+        Material Reed  -> p & personalSupply . reed -~ n
+        Material Stone -> p & personalSupply . stone -~ n
+        _              -> p in
+  payResources (gs & players . ix 0 .~ p') rs
+
+returnCard :: GameState -> CardName -> GameState
+returnCard gs name =
+  case find (\c -> _cardName c == name) $ currentPlayer gs ^. activeCards of
+    Nothing -> error "Could not find card"
+    Just c  -> if isMajor c
+               then gs & players . ix 0 . activeCards %~ delete c
+                       & availableMajorImprovements %~ (c:)
+               else gs & players . ix 0 . activeCards %~ delete c
 
 -----------------------------
 --------- BakeBread ---------
@@ -134,76 +177,83 @@ playMajorImprovement = do
 runBakeBreadAction :: GameStateT ActionPrimitives
 runBakeBreadAction = do
   gs <- get
-  let (_, minors, majors) = currentPlayer gs ^. activeCards
-      bakingCards = getBakingBreadCards (minors, majors)
-  (grainUsed, foodGained) <- lift $ getBakingBreadInput bakingCards $ currentPlayer gs ^. personalSupply . grain
-  return [BakeBread]
+  let cs = currentPlayer gs ^. activeCards
+      bakingCards = getBakingBreadCards cs
+  if null bakingCards
+  then do
+    lift $ putStrLn "You don't have any bakeries at this time"
+    return []
+  else do
+    (grainUsed, foodGained) <- lift $ getBakingBreadInput bakingCards $ currentPlayer gs ^. personalSupply . grain
+    put (gs & players . ix 0 . personalSupply . grain -~ grainUsed
+            & players . ix 0 . personalSupply . food +~ foodGained)
+    return [BakeBread]
 
-getBakingBreadInput :: Cards -> Int -> IO (Int, Int)
+getBakingBreadInput :: CardInfos -> Int -> IO (Int, Int)
 getBakingBreadInput cs g = do
-  let options = getBakeOptions cs
+  let options = map buildOption cs
   putStrLn "Select a card to use for baking bread:"
   (numTimes, foodPerUse) <- getNextSelection options
   case numTimes of
-    Any       -> do putStrLn "How many grain would you like to convert into food?"
-                    s <- getLine
-                    let numGrain = read s
-                    if numGrain > g
-                      then return (g, g * foodPerUse)
-                      else return (numGrain, numGrain * foodPerUse)
+    Any       -> do numGrain <- getGrainChoice g
+                    return (numGrain, numGrain * foodPerUse)
     UpToOnce  -> return (1, foodPerUse)
-    UpToTwice -> do putStrLn "Do you want to convert 1 or 2 grain into food?"
-                    answer <- getNextSelection [("1", 1), ("2", 2)]
-                    if answer == 1
-                      then return (1, foodPerUse)
-                      else return (2, 2 * foodPerUse)
+    UpToTwice ->
+      if g > 1
+      then do
+        putStrLn "Do you want to convert 1 or 2 grain into food?"
+        n <- getNextSelection [("1", 1), ("2", 2)]
+        return (n, n * foodPerUse)
+      else return (1, foodPerUse)
+    _ -> error "Invalid number of times value for a bakery"
   where
-    getBakeOptions :: Cards -> Options (NumberOfTimes, Int)
-    getBakeOptions cs' = map buildOption cs
-
-    buildOption :: Card -> Option (NumberOfTimes, Int)
+    buildOption :: CardInfo -> Option (NumberOfTimes, Int)
     buildOption c =
-      let (name, n, i) = getBakingCardData c in
+      let (name, n, i) = getBakingCardData $ _cardName c in
       ("Use " ++ name ++ " to gain [" ++ show i ++ "] food, " ++ show n, (n, i))
+
+    getGrainChoice :: Int -> IO Int
+    getGrainChoice n = do
+      putStrLn ("How many grain would you like to convert into food? (Up to a maximum of " ++ show n ++ ")")
+      s <- getLine
+      let numGrain = read s
+      if numGrain > n
+      then do
+        putStrLn "You don't have that much grain"
+        getGrainChoice n
+      else return numGrain
 
 -------------------------------------------
 ---- Baking Bread supporting functions ----
 -------------------------------------------
 
-isAnOven :: Card -> Bool
-isAnOven c =
-  let majorOvens = [StoneOven, ClayOven]
-      minorOvens = [BakersOven, WoodFiredOven] in
-  case c of
-    MajorImprovement majorType _ _ -> majorType `elem` majorOvens
-    MinorImprovement minorType _ _ _ -> minorType `elem` minorOvens
-    _ -> False
+isAnOven :: CardName -> Bool
+isAnOven name =
+  let ovens = [StoneOven, ClayOven, BakersOven, WoodFiredOven] in
+  name `elem` ovens
 
-getBakingBreadCards :: (MinorImprovementTypes, MajorImprovementTypes) -> Cards
-getBakingBreadCards (minors, majors) =
-  map lookupMinorCard (filter (`elem` minorBakeries) minors) ++
-  map lookupMajorCard (filter (`elem` majorBakeries) majors)
+getBakingBreadCards :: CardInfos -> CardInfos
+getBakingBreadCards = filter (\c -> _cardName c `elem` bakeries)
   where
-    minorBakeries :: MinorImprovementTypes
-    minorBakeries = [BakersOven, WoodFiredOven, SimpleFireplace]
+    bakeries :: CardNames
+    bakeries = [BakersOven, WoodFiredOven, SimpleFireplace, Fireplace1, Fireplace2, CookingHearth1, CookingHearth2, StoneOven, ClayOven]
 
-    majorBakeries :: MajorImprovementTypes
-    majorBakeries = [Fireplace1, Fireplace2, CookingHearth1, CookingHearth2, StoneOven, ClayOven]
+getBakingCardData :: CardName -> (String, NumberOfTimes, Int)
+getBakingCardData name
+  | name == Fireplace1 = ("Fireplace", UpToOnce, 5)
+  | name == Fireplace2 = ("Fireplace", UpToTwice, 4)
+  | name == CookingHearth1 = ("Cooking Hearth", Any, 3)
+  | name == CookingHearth2 = ("Cooking Hearth", Any, 3)
+  | name == StoneOven = ("Stone Oven", Any, 2)
+  | name == ClayOven = ("Clay Oven", Any, 2)
+  | name == BakersOven = ("Baker's Oven", UpToTwice, 5)
+  | name == WoodFiredOven = ("Wood Fired Oven", Any, 3)
+  | name == SimpleFireplace = ("Simple Fireplace", Any, 2)
 
-lookupMinorCard :: MinorImprovementType -> Card
-lookupMinorCard minor = minorImprovementsMap M.! minor
+-------------------------------------------
+---- Place X Resource on Round Spaces -----
+-------------------------------------------
 
-lookupMajorCard :: MajorImprovementType -> Card
-lookupMajorCard major = majorImprovementsMap M.! major
-
-getBakingCardData :: Card -> (String, NumberOfTimes, Int)
-getBakingCardData (MajorImprovement majorType _ _)
-  | majorType == Fireplace1 = ("Fireplace", UpToOnce, 5)
-  | majorType == Fireplace2 = ("Fireplace", UpToTwice, 4)
-  | majorType == CookingHearth1 = ("Cooking Hearth", Any, 3)
-  | majorType == CookingHearth2 = ("Cooking Hearth", Any, 3)
-  | majorType == StoneOven = ("Stone Oven", Any, 2)
-  | majorType == ClayOven = ("Clay Oven", Any, 2)
-getBakingCardData (MinorImprovement minorType _ _ _)
-  | minorType == WoodFiredOven = ("Wood Fired Oven", Any, 3)
-  | minorType == SimpleFireplace = ("Simple Fireplace", Any, 2)
+-- placeResourceOnRoundSpace :: Resource -> Rounds -> GameState -> GameState
+-- placeResourceOnRoundSpace r rounds gs =
+--   map 

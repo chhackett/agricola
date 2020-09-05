@@ -98,7 +98,7 @@ getBuildStablesChoices b = do
     getBuildStablesOptions b = buildSpaceOptions $ notHouseFieldOrStable b
 
 addStable :: Board -> Space -> Board
-addStable b s = b & stables %~ ((s, Nothing) :)
+addStable b s = b & unfencedStables %~ ((s, Nothing) :)
 
 -------------------------------
 ----- Renovation actions ------
@@ -208,8 +208,8 @@ sowCondition gs =
 bakeBreadCondition :: ActionAllowedFunc
 bakeBreadCondition gs =
   let g = currentPlayer gs ^. personalSupply . grain
-      (_, minors, majors) = currentPlayer gs ^. activeCards in
-  g > 0 && not (null $ getBakingBreadCards (minors, majors))
+      cards = currentPlayer gs ^. activeCards in
+  g > 0 && not (null $ getBakingBreadCards cards)
 
 runSowAndOrBakeBreadAction :: GameStateT ActionPrimitives
 runSowAndOrBakeBreadAction = do
@@ -226,26 +226,33 @@ runSowAction :: GameStateT ActionPrimitives
 runSowAction = do
   gs <- get
   let b = currentPlayer gs ^. board
-  (s, ct) <- lift $ getSowFieldInput b
-  let supply = currentPlayer gs ^. personalSupply
-      supply' = if ct == Grain
-                then supply & grain %~ (`subtract` 1)
-                else supply & veges %~ (`subtract` 1)
-  put $ gs & players . ix 0 . board .~ sowField b s ct
-           & players . ix 0 . personalSupply .~ supply'
-  return []
+      supply = currentPlayer gs ^. personalSupply
+  input <- lift $ getSowFieldInput b supply
+  case input of
+    Nothing -> return []
+    Just (s, ct) -> do
+      let supply' = if ct == Grain
+                    then supply & grain %~ (`subtract` 1)
+                    else supply & veges %~ (`subtract` 1)
+      put $ gs & players . ix 0 . board .~ sowField b s ct
+              & players . ix 0 . personalSupply .~ supply'
+      return [SowField ct]
 
 -- User needs to pick which field to sow.
-getSowFieldInput :: Board -> IO (Space, CropType)
-getSowFieldInput b = do
+getSowFieldInput :: Board -> PersonalSupply -> IO (Maybe (Space, CropType))
+getSowFieldInput b s = do
   let fs = _fields b
       emptySpaces = map fst (filter (isNothing . snd) fs)
       options = buildSpaceOptions emptySpaces
-  putStrLn "Select a field to sow"
-  space <- getNextSelection options
-  putStrLn "Select crop type (Grain or Veges)"
-  crop <- getNextSelection [("Grain", Grain), ("Veges", Veges)]
-  return (space, crop)
+      cropChoices = filter (\(_, ct) -> (s ^. if ct == Grain then grain else veges) > 0) [("Grain", Grain), ("Veges", Veges)]
+  if null options || null cropChoices
+  then return Nothing
+  else do
+    putStrLn "Select a field to sow"
+    space <- getNextSelection options
+    putStrLn "Select crop type (Grain or Veges)"
+    crop <- getNextSelection cropChoices
+    return $ Just (space, crop)
 
 sowField :: Board -> Space -> CropType -> Board
 sowField b s ct = b & fields %~ sow
@@ -272,13 +279,23 @@ runFencesAction :: GameStateT ActionPrimitives
 runFencesAction = do
   gs <- get
   let b = currentPlayer gs ^. board
+      ps = currentPlayer gs ^. board . pastures
       n = currentPlayer gs ^. personalSupply . wood
   es <- lift $ getFenceChoices (b, n, [])
   let es' = concatMap calculateBoundaryEdges (toListOf (pastures . traverse . _1) b)
-      pastures' = map (\ss -> (ss, Nothing)) $ calculatePastures b (es ++ es') -- use all edges on the board
-  put $ gs & players . ix 0 . board . pastures .~ pastures'
-           & players . ix 0 . personalSupply . wood .~ n - length es
-  return [BuildFences]
+      ps' = map (\ss -> (ss, Nothing, computeStablesInPasture b ss)) $ calculatePastureSpaces b (es ++ es') -- use all edges on the board
+  if (length es + Set.size (calculateAllPastureEdges ps)) /= Set.size (calculateAllPastureEdges ps')
+  then do
+    lift $ putStrLn "At least one fence is not part of the boundary of a valid pasture. Would you like to try again?"
+    yes <- lift $ getNextSelection yesNoOptions
+    if yes then runFencesAction
+           else return []
+  else do
+    let animals = getAllAnimals b
+    b' <- lift $ placeNewAnimals animals $ b & pastures .~ ps'
+    put $ gs & players . ix 0 . board .~ b'
+             & players . ix 0 . personalSupply . wood .~ n - length es
+    return [BuildFences]
 
 -- Given the board compute where the user selects to put the next fence piece
 getFenceChoices :: (Board, Int, Edges) -> IO Edges
@@ -299,7 +316,7 @@ availableFenceLocations b = [ e | e <- allEdges, isFenceAllowed e b]
 isFenceAllowed :: Edge -> Board -> Bool
 isFenceAllowed e b =
   let validSpaces = filter isValidSpace (getAdjacentSpaces e)
-      fences = concatMap (\(ss,_) -> calculateBoundaryEdges ss) (_pastures b)
+      fences = concatMap (\(ss,_,_) -> calculateBoundaryEdges ss) (_pastures b)
       hf = allHousesAndFields b in
   any (`notElem` hf) validSpaces && (e `notElem` fences)
 
@@ -312,31 +329,34 @@ getAdjacentSpaces ((x1, y1), (x2, y2)) =
 isVerticalEdge :: Edge -> Bool
 isVerticalEdge ((x1, _), (x2, _)) = x1 == x2
 
-
 -- Given list of spaces, compute bordering edges, removing edges that are shared by orthogonally adjacent spaces
 calculateBoundaryEdges :: Spaces -> Edges
 calculateBoundaryEdges ss =
   let allEdges = concatMap calcEdges ss in
   concat $ filter (\g -> length g == 1) $ group $ sort allEdges
-
-calcEdges :: Space -> Edges
-calcEdges (x, y) =
-  [ ((x, y), (x + 1, y))
-  , ((x, y + 1), (x + 1, y + 1))
-  , ((x, y), (x, y + 1))
-  , ((x + 1, y), (x + 1, y + 1)) ]
+  where
+    calcEdges :: Space -> Edges
+    calcEdges (x, y) =
+      [ ((x, y), (x + 1, y))
+      , ((x, y + 1), (x + 1, y + 1))
+      , ((x, y), (x, y + 1))
+      , ((x + 1, y), (x + 1, y + 1)) ]
 
 -- Calculate connected regions: For each orthogonally adjacent pair of spaces on the board, if they are not separated by
 -- a fence, then they are part of the same region.
 -- Add all 'connected' spaces to the region. Visit each connected space and repeat. If a space is on the edge of the board 
 -- and the space is not separated from the edge by a fence, then the region is not fenced in.
-calculatePastures :: Board -> Edges -> [Spaces]
-calculatePastures b es =
+calculatePastureSpaces :: Board -> Edges -> [Spaces]
+calculatePastureSpaces b es =
   let houseAndFieldSpaces = allHousesAndFields b
       validSpaces = difference houseAndFieldSpaces allSpaces
       allEdges = calculateBoundaryEdges (allPastureSpaces b) ++ es
       regions = calculateDisconnectedRegions allEdges in
   filter (isRegionFencedIn allEdges) regions
+
+calculateAllPastureEdges :: Pastures -> Set.Set Edge
+calculateAllPastureEdges ps =
+  Set.unions $ map (Set.fromList . (\(ss, _, _) -> calculateBoundaryEdges ss)) ps
 
 -- Given the set of fences, calculate regions that are completely separated by fences
 calculateDisconnectedRegions :: Edges -> [Spaces]
@@ -411,10 +431,14 @@ allHousesAndFields b =
   ss1 ++ ss2
 
 allStables :: Board -> Spaces
-allStables = toListOf (stables . traverse . _1)
+allStables b = toListOf (unfencedStables . traverse . _1) b ++ concatMap (\(_, _, ss) -> ss) (b ^. pastures)
+
+-- Calculate the subset of spaces of the ones provided which contain a stables
+computeStablesInPasture :: Board -> Spaces -> Spaces
+computeStablesInPasture b ss = ss `intersect` allStables b
 
 allPastureSpaces :: Board -> Spaces
-allPastureSpaces b = concatMap fst (_pastures b)
+allPastureSpaces b = concatMap (\(ss, _, _) -> ss) (_pastures b)
 
 -- Include houses, fields, pastures and stables
 allUsedSpaces :: Board -> Spaces
@@ -437,3 +461,120 @@ isValidSpace s = s `elem` allSpaces
 
 buildSpaceOptions :: Spaces -> Options Space
 buildSpaceOptions = map (\s -> ("Location: " ++ show s, s))
+
+allSpaces :: Spaces
+allSpaces = [(x, y) | y <- [0 .. 2], x <- [0 .. 4]]
+
+allEdges :: Edges
+allEdges = allHorizontalEdges ++ allVerticalEdges
+
+allHorizontalEdges :: Edges
+allHorizontalEdges = [((x, y), (x + 1, y)) | x <- [0 .. 4], y <- [0 .. 3]]
+
+allVerticalEdges :: Edges
+allVerticalEdges = [((x, y), (x, y + 1)) | x <- [0 .. 5], y <- [0 .. 2]]
+
+------------------------------------
+-- Re-compute animal distribution --
+------------------------------------
+
+getAllAnimals :: Board -> Animals
+getAllAnimals b = filter (\(_, n) -> n /= 0) [getAll Sheep b, getAll Boar b, getAll Cattle b]
+  where
+    getAll :: AnimalType -> Board -> Animal
+    getAll at b =
+      let c1 = case _houseAnimal b of
+                  Nothing -> 0
+                  Just at' -> if at == at' then 1 else 0
+          c2 = foldl (getAnimalPasture at) 0 $ _pastures b
+          c3 = foldl (getAnimalStables at) 0 $ _unfencedStables b in
+      (at, c1 + c2 + c3)
+
+    getAnimalPasture :: AnimalType -> Int -> (Spaces, Maybe Animal, Spaces) -> Int
+    getAnimalPasture at n (_, ma, _) = n + getAnimal at ma
+
+    getAnimalStables :: AnimalType -> Int -> (Space, Maybe Animal) -> Int
+    getAnimalStables at n (_, ma) = n + getAnimal at ma
+
+    getAnimal :: AnimalType -> Maybe Animal -> Int
+    getAnimal at ma =
+      case ma of
+        Nothing -> 0
+        Just (at', m) -> if at == at' then m else 0
+
+--------------------------------
+--------- Animal Storage -------
+--------------------------------
+
+-- This action allows user to take list of animal types, assign them to pastures, unfenced stables, or the house.
+-- Any extra animals that are not placed 'run away' when this action completes. Perhaps in the future we also need
+-- to allow for animals to be converted to food while this action proceeds. But for now, that will be handled as
+-- a separate action.
+placeNewAnimals :: Animals -> Board -> IO Board
+placeNewAnimals [] b = return b
+placeNewAnimals as b = do
+  putStrLn $ "Unassigned animals:\n\t" ++ concatMap show as
+  putStrLn "You may store animals in the following locations:"
+  putStrLn $ "Your house, currently holding [" ++ show (_houseAnimal b) ++ "]"
+  mapM_ showPastures $ zip (_pastures b) [0 ..]
+  mapM_ showUnfencedStables $ zip (_unfencedStables b) [0 ..]
+  putStrLn "Select which animal type you would like to assign to a pasture, unfenced stable, or the house:"
+  choice <- getNextSelection $ map (\(at, n) -> (show at, (at, n))) as
+  (b', as') <- placeNewAnimal choice b
+  if null as'
+  then do
+    putStrLn "There are no more unassigned animals"
+    return b'
+  else do
+    putStrLn $ "These animals are now unassigned: " ++ show as'
+    optionalDoIO "Do you want to assign the remaining animals?" b' (placeNewAnimals as' b')
+  where
+    showPastures ((ss, a, st), i) = print $ "Pasture [" ++ show i ++ "], currently holding [" ++ showAnimal a ++ "] can hold up to " ++ show (if null st then 2 * length ss else 4 * length ss) ++ " animals"
+    showUnfencedStables ((_, a), i) = print $ "Unfenced stable [" ++ show i ++ "], currently holding [" ++ showAnimal a ++ "] can hold up to 2 animals"
+    showAnimal a = case a of
+      Nothing -> "Nothing"
+      Just (at, i) -> show i ++ " " ++ show at
+
+data StorageChoice = House | Pasture Int | UnfencedStable Int
+
+-- Place the requested animals in a valid location on the board. Other animals may have to be removed from that location. Those are returned in the result.
+placeNewAnimal :: Animal -> Board -> IO (Board, Animals)
+placeNewAnimal (at, n) b = do
+  putStrLn "Select where to put the new animals (animals in that location will be replaced if they are of different type):"
+  let options = getAnimalStoreOptions b
+  choice <- getNextSelection options
+  case choice of
+    House -> do
+      let ((at', n'), leftOvers) = storeAnimals 1 (at, n) ((\h -> (h, 1)) <$> _houseAnimal b)
+      return (b & houseAnimal ?~ at', leftOvers)
+    Pasture i ->
+      let (ss, a, st) = (b ^. pastures) !! i
+          cap = getCapacity (ss, a, st)
+          ((at', n'), leftOvers) = storeAnimals cap (at, n) a in
+      return (b & pastures . ix i . _2 ?~ (at', n'), leftOvers)
+    UnfencedStable i ->
+      let a = snd $ (b ^. unfencedStables) !! i
+          ((at', n'), leftOvers) = storeAnimals 2 (at, n) a in
+      return (b & unfencedStables . ix i . _2 ?~ (at, n'), leftOvers)
+  where
+    getAnimalStoreOptions :: Board -> Options StorageChoice
+    getAnimalStoreOptions b =
+      let houseOption = ("In your house, containing: " ++ show (_houseAnimal b), House)
+          pastureOptions = zipWith (\(ss, mAnimal, _) i -> ("In pasture: " ++ show ss ++ ", containing: " ++ show mAnimal, Pasture i)) (_pastures b) [0 ..]
+          stableOptions = zipWith (\(s, mAnimal) i -> ("In (unfenced) stable: " ++ show s ++ ", containing: " ++ show mAnimal, UnfencedStable i)) (_unfencedStables b) [0 ..] in
+      houseOption : pastureOptions ++ stableOptions
+
+    -- n is capacity that can be stored in a location, (at, n') is unassigned animal we want to store in the location, (at', n'') is animals already in that location
+    -- resulting tuple is (animal in the location, leftover animals that are unassigned)
+    storeAnimals :: Int -> Animal -> Maybe Animal -> (Animal, Animals)
+    storeAnimals cap (at, n') Nothing
+      | n' > cap = ((at, cap), [(at, n' - cap)])
+      | otherwise = ((at, n'), [])
+    storeAnimals cap (at, n') (Just (at', n''))
+      | at == at' = if n' + n'' > cap then ((at, cap), [(at, n' + n'' - cap)]) else ((at, n' + n''), [])
+      | otherwise = if n' > cap
+                    then ((at, cap), [(at, n' - cap), (at', n'')])
+                    else ((at, n'), [(at', n'')])
+
+    getCapacity :: Pasture -> Int
+    getCapacity p = let (ss, _, st) = p in if null st then 2 * length ss else 4 * length ss

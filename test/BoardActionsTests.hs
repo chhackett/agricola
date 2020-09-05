@@ -4,6 +4,9 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Data.List
+
+import Types.BasicTypes
+import Types.ResourceTypes
 import Types.BasicGameTypes
 import Actions.BoardActions
 
