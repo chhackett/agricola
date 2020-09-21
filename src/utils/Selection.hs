@@ -2,6 +2,7 @@ module Utils.Selection
 ( getNextSelection,
   yesNoOptions,
   oneOrBothOptions,
+  getNumberOptions,
   Option,
   Options,
   EitherOrBoth (..)) where
@@ -27,6 +28,9 @@ yesNoOptions = [("Yes", True), ("No", False)]
 
 oneOrBothOptions :: Description -> Description -> Options EitherOrBoth
 oneOrBothOptions a b = [(a, First), (b, Second), ("Both", Both)]
+
+getNumberOptions :: Int -> Options Int
+getNumberOptions n = map (\i -> (show i, i)) [1 .. n]
 
 getSelect :: OptionMap a -> IO a
 getSelect mos = do

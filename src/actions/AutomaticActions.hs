@@ -8,7 +8,7 @@ import Data.List
 import Types.BasicTypes
 import Types.BasicGameTypes
 import Utils.ListUtils
-import ActionTypes
+import ActionFunctions
 import Actions.CardActions
 
 ----------------------------------
@@ -22,13 +22,13 @@ familyGrowthConditions id =
     haveExtraRoom :: GameState -> Bool
     haveExtraRoom gs = length (currentPlayer gs ^. board . houses) > currentPlayer gs ^. workers
 
-familyGrowthAndMinorImprovement :: GameStateT ActionPrimitives
+familyGrowthAndMinorImprovement :: GameStateT EventTypes
 familyGrowthAndMinorImprovement = do
   result <- runFamilyGrowth
   result' <- playMinorImprovement
   return (result ++ result')
 
-runFamilyGrowth :: GameStateT ActionPrimitives
+runFamilyGrowth :: GameStateT EventTypes
 runFamilyGrowth = do
   gs <- get
   let id = gs ^. currentActionId

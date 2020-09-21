@@ -2,6 +2,7 @@ module ResourceHelperFuncs where
 
 import Data.Maybe
 
+import AnimalFunctions
 import Types.BasicGameTypes
 import Types.ResourceTypes
 
@@ -9,19 +10,24 @@ import Types.ResourceTypes
 ------ Helper functions for resources ------
 --------------------------------------------
 
-getAnimalQuantity :: Board -> AnimalType -> Int
-getAnimalQuantity b at =
-  let i = if isJust $ _houseAnimal b then 1 else 0
-      j = getAllInPastures at $ _pastures b
-      k = getAll at $ _unfencedStables b in
-  i + j + k
+getAllResources :: Player -> Resources
+getAllResources p = removeEmptyTypes $ getAllPersonalSupplyResources (_personalSupply p) ++ map animalToResource (getAllAnimals $_board p)
 
-getAllInPastures :: Eq b => b -> [(a, Maybe (b, Int), c)] -> Int
-getAllInPastures t = foldl (\acc (a, b, _) -> getSum t acc (a, b)) 0
+getAllPersonalSupplyResources :: PersonalSupply -> Resources
+getAllPersonalSupplyResources ps =
+  map (\rt -> (rt, getAmountInPersonalSupply rt ps)) [Crop Grain, Crop Veges, Material Wood, Material Clay, Material Reed, Material Stone]
 
-getAll :: Eq b => b -> [(a, Maybe (b, Int))] -> Int
-getAll t = foldl (getSum t) 0
+animalToResource :: Animal -> Resource
+animalToResource (at, n) = (Animal at, n)
 
-getSum :: Eq b => b -> Int -> (a, Maybe (b, Int)) -> Int
-getSum t n (_, Just (t', n')) = if t == t' then n + n' else n
-getSum _ n (_, Nothing) = n
+getAmountInPersonalSupply :: ResourceType -> PersonalSupply -> Int
+getAmountInPersonalSupply Food  = _food
+getAmountInPersonalSupply (Crop Grain) = _grain
+getAmountInPersonalSupply (Crop Veges) = _veges
+getAmountInPersonalSupply (Material Wood)  = _wood
+getAmountInPersonalSupply (Material Clay)  = _clay
+getAmountInPersonalSupply (Material Reed)  = _reed
+getAmountInPersonalSupply (Material Stone) = _stone
+
+removeEmptyTypes :: [(a, Int)] -> [(a, Int)]
+removeEmptyTypes = filter (\(_, n) -> n /= 0)

@@ -89,7 +89,7 @@ optionalDoIO prompt nope action = do
          else return nope
 
 noOpAction :: ActionType
-noOpAction = AnytimeAction doNothing
+noOpAction = AnytimeAction "No-op" doNothing
 
 doNothing :: SimpleActionType
 doNothing = return []

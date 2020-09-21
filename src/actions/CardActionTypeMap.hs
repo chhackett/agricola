@@ -10,21 +10,43 @@ import Types.BasicTypes
 import Types.BasicGameTypes
 import Types.CardNames
 import Types.ResourceTypes
+import Utils.ListUtils
 import Utils.Selection
+
+getEventActions :: CardNames -> [(Description, EventType, SimpleActionType)]
+getEventActions cs =
+  foldl getEventActionData [] cardActionList
+  where
+    getEventActionData :: [(Description, EventType, SimpleActionType)] -> (CardName, ActionType) -> [(Description, EventType, SimpleActionType)]
+    getEventActionData xs ca =
+      case snd ca of
+        EventTriggeredAction desc e a -> (desc, e, a):xs
+        _                             -> xs
+
+
+fireplaceDesc = goodsToFoodDesc ++ "1 Vege for 2 Food, 1 Sheep for 2 Food, 1 Boar for 2 Food, 1 Cattle for 3 Food"
+hearthDesc = goodsToFoodDesc ++ "1 Vege for 3 Food, 1 Sheep for 2 Food, 1 Boar for 3 Food, 1 Cattle for 4 Food"
+goodsToFoodDesc = "At any time, you may convert goods to Food as follows:\n"
+
+potteryDesc = materialConverterDesc "Clay" "2"
+joineryDesc = materialConverterDesc "Wood" "2"
+basketmakerDesc = materialConverterDesc "Reed" "3"
+materialConverterDesc m n = "In each Harvest, you can use the Pottery to convert at most 1 " ++ m ++ " to " ++ n ++ " food.\n\t" ++
+  "At the end of the game, you receive 1/2/3 Bonus points for 3/5/7 " ++ m
 
 cardActionList :: [(CardName, ActionType)]
 cardActionList =
-  [ (Fireplace1, AnytimeAction $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
-  , (Fireplace2, AnytimeAction $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
-  , (CookingHearth1, AnytimeAction $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
-  , (CookingHearth2, AnytimeAction $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
+  [ (Fireplace1, AnytimeAction fireplaceDesc $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
+  , (Fireplace2, AnytimeAction fireplaceDesc $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
+  , (CookingHearth1, AnytimeAction hearthDesc $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
+  , (CookingHearth2, AnytimeAction hearthDesc $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
   , (StoneOven, noOpAction)
   , (ClayOven, noOpAction)
-  , (Pottery, EventTriggeredAction (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Clay, 1) 2)) 
-  , (Joinery, EventTriggeredAction (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Wood, 1) 2)) 
-  , (BasketmakersWorkshop, EventTriggeredAction (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Reed, 1) 3)) 
+  , (Pottery, EventTriggeredAction potteryDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Clay, 1) 2)) 
+  , (Joinery, EventTriggeredAction joineryDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Wood, 1) 2)) 
+  , (BasketmakersWorkshop, EventTriggeredAction basketmakerDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Reed, 1) 3)) 
   , (Well, noOpAction)
-  
+
   -- "Easy" minor improvement deck
   , (AnimalPen, noOpAction)
   , (MarketStall, noOpAction)
@@ -79,7 +101,7 @@ cardActionList =
   , (BakingTray, noOpAction)
   , (Manger, noOpAction)
   , (BuildingMaterialCard, noOpAction)
-  
+
   -- "Easy" occupation deck
   , (ClayMixer, noOpAction)
   , (HedgeKeeper, noOpAction)

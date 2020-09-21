@@ -5,7 +5,10 @@ import Control.Monad.State
 import Data.List
 import qualified Data.Map as M
 
-import ActionTypes
+import Actions.CardActionTypeMap
+import ActionFunctions
+import AnimalFunctions
+import Types.CardNames
 import Types.CardDeclarations
 import Types.BasicTypes
 import Types.BasicGameTypes
@@ -30,14 +33,14 @@ playOccupationConditions asId =
           occupations = filter isOccupation $ cp ^. activeCards in
       cp ^. personalSupply . food >= if null occupations then 1 else 2
 
-runPlayOccupation :: GameStateT ActionPrimitives
+runPlayOccupation :: GameStateT EventTypes
 runPlayOccupation = do
   gs <- get
   let cards = gs ^. players . ix 0 . activeCards
       inhand = filter isOccupation $ gs ^. players . ix 0 . hand
       options = map (\h -> (show h, h)) inhand
   card <- lift $ getNextSelection options
-  put (gs & players . ix 0 . activeCards .~ (card:cards)
+  put (gs & players . ix 0 . activeCards %~ (card:)
           & players . ix 0 . personalSupply . food %~ subtract (if length inhand == 7 then 1 else 2))
   return [PlayOccupation $ _cardName card]
 
@@ -45,7 +48,7 @@ runPlayOccupation = do
 -- Play a Major Or Minor Improvement --
 ---------------------------------------
 
-playMajorOrMinorImprovement :: GameStateT ActionPrimitives
+playMajorOrMinorImprovement :: GameStateT EventTypes
 playMajorOrMinorImprovement = do
   lift $ putStrLn "Would you like to play a Major or Minor improvement?"
   let options = [("Major", 0), ("Minor", 1)]
@@ -58,7 +61,7 @@ playMajorOrMinorImprovement = do
 ---- Play a Minor Improvement ----
 ----------------------------------
 
-playMinorImprovement :: GameStateT ActionPrimitives
+playMinorImprovement :: GameStateT EventTypes
 playMinorImprovement = do
   gs <- get
   let p = currentPlayer gs
@@ -79,7 +82,7 @@ playMinorImprovement = do
 ---- Play a Major Improvement ----
 ----------------------------------
 
-playMajorImprovement :: GameStateT ActionPrimitives
+playMajorImprovement :: GameStateT EventTypes
 playMajorImprovement = do
   gs <- get
   let oldMajors = gs ^. availableMajorImprovements
@@ -174,7 +177,7 @@ returnCard gs name =
 --------- BakeBread ---------
 -----------------------------
 
-runBakeBreadAction :: GameStateT ActionPrimitives
+runBakeBreadAction :: GameStateT EventTypes
 runBakeBreadAction = do
   gs <- get
   let cs = currentPlayer gs ^. activeCards

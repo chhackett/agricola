@@ -28,3 +28,7 @@ getAmount rt = foldl get 0
 -- Return all elements in the second list that are not in the first
 difference :: Eq a => [a] -> [a] -> [a]
 difference as = filter (`notElem` as)
+
+getFirstOfType :: Eq a => a -> [(a, b)] -> Maybe b
+getFirstOfType t [] = Nothing
+getFirstOfType t ((t',n):xs) = if t == t' then Just n else getFirstOfType t xs

@@ -5,7 +5,7 @@ import qualified Data.Map as M
 import Types.BasicTypes
 import Types.BasicGameTypes
 import Types.ResourceTypes
-import ActionTypes
+import ActionFunctions
 import Actions.AutomaticActions
 import Actions.ResourceActions
 import Actions.BoardActions

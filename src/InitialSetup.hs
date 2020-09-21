@@ -5,11 +5,11 @@ import qualified Data.Map as M
 import System.Random
 import System.Random.Shuffle
 
+import ActionFunctions
 import Types.BasicTypes
 import Types.BasicGameTypes
 import Types.ResourceTypes
 import Types.CardDeclarations
-import ActionTypes
 import Actions.GameActionFuncs
 import Actions.ResourceActions
 import Actions.BoardActions
@@ -31,6 +31,7 @@ initGameState g names numPlayers mode deck =
             []
             0
             0
+            M.empty
 
 -- initialize future action cards list with random generator
 initFutureActionCards :: (RandomGen g) => g -> ActionSpaceId -> ActionSpaces

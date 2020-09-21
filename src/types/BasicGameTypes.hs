@@ -11,6 +11,7 @@ import Control.Lens as L
 import Types.BasicTypes
 import Types.ResourceTypes
 import Types.CardDeclarations
+import Types.CardNames
 
 ------------------------------------------
 ----------- Player Data ------------------
@@ -100,7 +101,7 @@ $(makeLenses ''Player)
 --   - when you take an action you can choose to do something else
 --   - the card offers its own action that you can use at any time
 
-data ActionPrimitive =
+data EventType =
     PhaseChange Phase
   | RoundChange Round
   | StartingPlayer
@@ -112,7 +113,7 @@ data ActionPrimitive =
   | PlowField
   | SowField CropType
   | BakeBread                                    -- just a particular form of converting resources - in this case, grain to food. But its a very common pattern.
-  | ConvertAnimalToFood AnimalType               -- another form of converting resources - in this case, animals to food.
+  | ConvertResourceToFood ResourceType           -- more general form of converting resources to food
   | TakeResources Resources                      -- taking resources from somewhere (general supply, an action space) and putting them in your personal supply
   | ReplenishResources Resource                  -- some cards 'replenish' their resources in the replenish phase
   | PutResourcesOnCard ResourceType              -- Some actions say to put a resource on a particular action space or card (from general supply usually)
@@ -126,11 +127,29 @@ data ActionPrimitive =
   | BreedAnimals Animals
   deriving (Show, Read, Eq, Ord)
 
-type ActionPrimitives = [ActionPrimitive]
+type EventTypes = [EventType]
+
+data When =
+  AnyTime |
+  WhenThisCardIsPlayed |
+  WhenEventOccurs EventType |
+  AtEndOfGame
+  deriving (Show, Read, Eq, Ord)
+
+data Who =
+  Everyone |
+  CurrentPlayer |
+  AnotherPlayer PlayerId
+  deriving (Show, Read, Eq, Ord)
+
+data ActionType =
+  EventTriggeredAction Description EventType SimpleActionType |
+  AnytimeAction Description SimpleActionType |
+  BeginPhaseAction Phase SimpleActionType
 
 -- After an action is evaluated, that last action primitive to be executed is supplied to determine which
 -- subsequent actions are allowed
--- type ActionEvent = ActionPrimitive
+-- type ActionEvent = EventType
 -- type ActionEvents = [ActionEvent]
 
 type Description = String
@@ -146,6 +165,8 @@ type ActionSpaceMap = M.Map ActionSpaceId ActionSpace
 
 type RoundActionSpaceIdMap = M.Map Round ActionSpaceId
 
+type EventTriggeredActionsMap = M.Map EventType [SimpleActionType]
+
 data GameState = GameState
   { _round :: Round
   , _phase :: Phase
@@ -154,13 +175,14 @@ data GameState = GameState
   , _futureActionSpaces :: [ActionSpace]
   , _actionSpaceRoundMap :: RoundActionSpaceIdMap
   , _availableMajorImprovements :: CardInfos
-  , _eventHistory :: ActionPrimitives
+  , _eventHistory :: EventTypes
   , _currentActionId :: ActionSpaceId
-  , _nextStartingPlayer :: PlayerId }
+  , _nextStartingPlayer :: PlayerId
+  , _eventTriggeredActionMap :: EventTriggeredActionsMap }
 
 type GameStateT a = StateT GameState IO a
 
-type SimpleActionType = GameStateT ActionPrimitives
+type SimpleActionType = GameStateT EventTypes
 
 type EitherActionType = Either SimpleActionType (ActionSpaceId -> SimpleActionType)
 
@@ -205,7 +227,7 @@ showWorkers pcm =
     toString (pid, n) = show pid ++ ": " ++ show n
 
 instance Show GameState where
-  show (GameState round phase players actions futureActions _ majors _ _ nextStart) =
+  show (GameState round phase players actions futureActions _ majors _ _ nextStart _) =
     "GameState: Round: " ++ show round ++
     "\n           Phase: " ++ show phase ++
     "\n           CurrentPlayer: " ++ _name (head players) ++
@@ -227,29 +249,84 @@ showActions asm =
 -- be helpful to have data types to represent these different areas/tokens. This can help when specifying the
 -- behavior of the different actions.
 
--- data BoardArea =
---   GeneralSupply |          -- where resource are stored until a player takes them
---   ActionSpaceArea |            -- where action cards go, including the round cards and the green action cards
---   PlayersUnusedTokensSupply |  -- tokens that are not used at the moment (fences, extra workers, stables go here until used)
---   PlayerPersonalSupply |   -- where building materials and food are stored after a player takes them (not animals though)
---   PlayerBoardSpace |       -- represents the 15 spaces on the players personal board (can put buildings, fields, animals - if fenced, stables)
---   PlayerBoardEdge |        -- represents edges on the players personal board (only fences go there)
---   PlayerCardArea |         -- represents a card that a player has 'played' so it is face up in front of a player (tokens can be placed there)
---   PlayerHand               -- represents the hand of cards a player has (occupation and minor improvement cards are here until they are played)
+-- data GameArea = GameArea
+--   { _generalSupply :: GeneralSupply          -- where resource are stored until a player takes them
+--   , _actionSpaceArea :: ActionSpaceArea            -- where action cards go, including the round cards and the green action cards
+--   , _playerAreas :: [PlayerArea]
+--   }
 
--- data GameToken =
---   Worker |
---   Fence |
---   Stable |
---   ActionCard |
---   RoundCard |
---   MajorImprovementCard MajorImprovementType |
---   MinorImprovementCard MinorImprovementType |
---   OccupationCard OccupationType |
---   Room HouseMaterial |
---   Field |
---   ResourceToken ResourceType
---   deriving (Show, Read, Eq, Ord)
+-- data GeneralSupply = GeneralSupply
+--   { _woodHouseTiles :: Int
+--   , _clayHouseTiles :: Int
+--   , _stoneHouseTiles :: Int
+--   , _fieldTiles :: Int
+--   , _generalSupplyResources :: ResourceSupply
+--   }
+
+-- data ActionSpaceArea = ActionSpaceArea
+--   { _actionCardSlots :: CardNames
+--   , _roundCardSlots :: CardNames
+--   }
+
+-- data PlayerArea = PlayerArea
+--   { _playersUnusedTokensSupply :: PlayersUnusedTokensSupply  -- tokens that are not used at the moment (fences, extra workers, stables go here until used)
+--   , _playerCardArea :: PlayerCardArea         -- represents a card that a player has 'played' so it is face up in front of a player (tokens can be placed there)
+--   , _playerHand :: PlayerHand               -- represents the hand of cards a player has (occupation and minor improvement cards are here until they are played)
+--   , _boardArea :: BoardArea
+--   }
+
+-- data PlayersUnusedTokensSupply = PlayersUnusedTokensSupply
+--   { _fences :: Int
+--   , _stables :: Int
+--   , _workerTokens :: Int
+--   }
+
+-- data PlayerCardArea = PlayerCardArea
+--   { _minors :: CardNames
+--   , _majors :: CardNames
+--   , _occupations :: CardNames
+--   }
+
+-- data PlayerHand = PlayerHand
+--   { _minorsHand :: CardNames
+--   , _occupationsHand :: CardNames
+--   }
+
+-- data BoardArea = BoardArea
+--   { _personalSupply :: ResourceSupply   -- where building materials and food are stored after a player takes them (not animals though)
+--   , _playerBoardSpaces :: [PlayerBoardSpace]       -- represents the 15 spaces on the players personal board (can put buildings, fields, animals - if fenced, stables)
+--   , _playerBoardEdges :: [PlayerBoardEdge]        -- represents edges on the players personal board (only fences go there)
+--   }
+
+-- data ResourceSupply = ResourceSupply
+--   { _foodTokens :: Int
+--   , _woodTokens :: Int
+--   , _clayTokens :: Int
+--   , _stoneTokens :: Int
+--   , _reedTokens :: Int
+--   , _sheepTokens :: Int
+--   , _boarTokens :: Int
+--   , _cattleTokens :: Int
+--   }
+
+type PlayerBoardSpace = (Space, GameTokens)
+type PlayerBoardEdge = (Edge, Maybe GameToken)
+
+data GameToken =
+  Worker |
+  Fence |
+  Stable |
+  ActionCard |
+  RoundCard |
+  MajorImprovementCard CardName |
+  MinorImprovementCard CardName |
+  OccupationCard CardName |
+  Room HouseMaterial |
+  Field |
+  ResourceToken ResourceType
+  deriving (Show, Read, Eq, Ord)
+
+type GameTokens = [GameToken]
 
 currentPlayer :: GameState -> Player
 currentPlayer = head . _players

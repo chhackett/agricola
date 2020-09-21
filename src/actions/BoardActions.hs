@@ -10,12 +10,13 @@ import Data.List.Lens
 import qualified Data.Set as Set
 import Data.List
 
+import ActionFunctions
+import AnimalFunctions
 import Actions.CardActions
 import Types.ResourceTypes
 import Types.BasicGameTypes
 import Utils.Selection
 import Utils.ListUtils
-import ActionTypes
 
 -----------------------------
 --------- BuildRoom ---------
@@ -35,7 +36,7 @@ ifHaveAdjacentEmptySpace gs =
       hs = _houses b in
   not . null $ getAdjacentEmptySpaces b (fst hs)
 
-runBuildRoomAndOrStables :: GameStateT ActionPrimitives
+runBuildRoomAndOrStables :: GameStateT EventTypes
 runBuildRoomAndOrStables = do
   gs <- get
   results <-
@@ -48,7 +49,7 @@ runBuildRoomAndOrStables = do
       else return []
   return (results ++ results')
 
-runBuildRoom :: GameStateT ActionPrimitives
+runBuildRoom :: GameStateT EventTypes
 runBuildRoom = do
   gs <- get
   let b = currentPlayer gs ^. board
@@ -76,7 +77,7 @@ addRoom b s = b & houses . _1 %~ (s:)
 ------- BuildStables --------
 -----------------------------
 
-runBuildStables :: GameStateT ActionPrimitives
+runBuildStables :: GameStateT EventTypes
 runBuildStables = do
   gs <- get
   let b = currentPlayer gs ^. board
@@ -116,19 +117,19 @@ renovateConditions asId =
       currentPlayer gs ^. personalSupply .
         (if material == WoodHouse then clay else stone) >= n
 
-renovationAndMajorOrMinor :: GameStateT ActionPrimitives
+renovationAndMajorOrMinor :: GameStateT EventTypes
 renovationAndMajorOrMinor = do
   result <- renovateHouse
   result' <- playMajorOrMinorImprovement
   return (result ++ result')
 
-renovateAndFences :: GameStateT ActionPrimitives
+renovateAndFences :: GameStateT EventTypes
 renovateAndFences = do
   result <- renovateHouse
   result' <- runFencesAction
   return (result ++ result')
 
-renovateHouse :: GameStateT ActionPrimitives
+renovateHouse :: GameStateT EventTypes
 renovateHouse = do
   gs <- get
   let n = length $ currentPlayer gs ^. board . houses . _1
@@ -151,7 +152,7 @@ haveEmptySpace gs =
   let b = currentPlayer gs ^. board in
   not . null $ allEmptySpaces b
 
-runPlowAndOrSow :: GameStateT ActionPrimitives
+runPlowAndOrSow :: GameStateT EventTypes
 runPlowAndOrSow = do
   lift $ putStrLn "Would you like to plow, sow, or both?"
   choice <- lift $ getNextSelection $ oneOrBothOptions "Plow" "Sow"
@@ -163,7 +164,7 @@ runPlowAndOrSow = do
          result' <- runSowAction
          return (result ++ result')
 
-runPlowFieldAction :: GameStateT ActionPrimitives
+runPlowFieldAction :: GameStateT EventTypes
 runPlowFieldAction = do
   gs <- get
   let b = currentPlayer gs ^. board
@@ -211,7 +212,7 @@ bakeBreadCondition gs =
       cards = currentPlayer gs ^. activeCards in
   g > 0 && not (null $ getBakingBreadCards cards)
 
-runSowAndOrBakeBreadAction :: GameStateT ActionPrimitives
+runSowAndOrBakeBreadAction :: GameStateT EventTypes
 runSowAndOrBakeBreadAction = do
   gs <- get
   results <- runSowAction
@@ -222,7 +223,7 @@ runSowAndOrBakeBreadAction = do
       return (results ++ results')
   else return results
 
-runSowAction :: GameStateT ActionPrimitives
+runSowAction :: GameStateT EventTypes
 runSowAction = do
   gs <- get
   let b = currentPlayer gs ^. board
@@ -275,7 +276,7 @@ fencesConditions asId =
 -- all fences must be part of the boundary of enclosed regions (no extra fences that do not enclose a region)
 -- enclosed regions may not contain fields or houses (but may contain stables)
 
-runFencesAction :: GameStateT ActionPrimitives
+runFencesAction :: GameStateT EventTypes
 runFencesAction = do
   gs <- get
   let b = currentPlayer gs ^. board
@@ -474,34 +475,6 @@ allHorizontalEdges = [((x, y), (x + 1, y)) | x <- [0 .. 4], y <- [0 .. 3]]
 allVerticalEdges :: Edges
 allVerticalEdges = [((x, y), (x, y + 1)) | x <- [0 .. 5], y <- [0 .. 2]]
 
-------------------------------------
--- Re-compute animal distribution --
-------------------------------------
-
-getAllAnimals :: Board -> Animals
-getAllAnimals b = filter (\(_, n) -> n /= 0) [getAll Sheep b, getAll Boar b, getAll Cattle b]
-  where
-    getAll :: AnimalType -> Board -> Animal
-    getAll at b =
-      let c1 = case _houseAnimal b of
-                  Nothing -> 0
-                  Just at' -> if at == at' then 1 else 0
-          c2 = foldl (getAnimalPasture at) 0 $ _pastures b
-          c3 = foldl (getAnimalStables at) 0 $ _unfencedStables b in
-      (at, c1 + c2 + c3)
-
-    getAnimalPasture :: AnimalType -> Int -> (Spaces, Maybe Animal, Spaces) -> Int
-    getAnimalPasture at n (_, ma, _) = n + getAnimal at ma
-
-    getAnimalStables :: AnimalType -> Int -> (Space, Maybe Animal) -> Int
-    getAnimalStables at n (_, ma) = n + getAnimal at ma
-
-    getAnimal :: AnimalType -> Maybe Animal -> Int
-    getAnimal at ma =
-      case ma of
-        Nothing -> 0
-        Just (at', m) -> if at == at' then m else 0
-
 --------------------------------
 --------- Animal Storage -------
 --------------------------------
@@ -535,8 +508,6 @@ placeNewAnimals as b = do
       Nothing -> "Nothing"
       Just (at, i) -> show i ++ " " ++ show at
 
-data StorageChoice = House | Pasture Int | UnfencedStable Int
-
 -- Place the requested animals in a valid location on the board. Other animals may have to be removed from that location. Those are returned in the result.
 placeNewAnimal :: Animal -> Board -> IO (Board, Animals)
 placeNewAnimal (at, n) b = do
@@ -545,7 +516,7 @@ placeNewAnimal (at, n) b = do
   choice <- getNextSelection options
   case choice of
     House -> do
-      let ((at', n'), leftOvers) = storeAnimals 1 (at, n) ((\h -> (h, 1)) <$> _houseAnimal b)
+      let ((at', n'), leftOvers) = storeAnimals 1 (at, n) $ (, 1) <$> _houseAnimal b
       return (b & houseAnimal ?~ at', leftOvers)
     Pasture i ->
       let (ss, a, st) = (b ^. pastures) !! i
@@ -556,14 +527,7 @@ placeNewAnimal (at, n) b = do
       let a = snd $ (b ^. unfencedStables) !! i
           ((at', n'), leftOvers) = storeAnimals 2 (at, n) a in
       return (b & unfencedStables . ix i . _2 ?~ (at, n'), leftOvers)
-  where
-    getAnimalStoreOptions :: Board -> Options StorageChoice
-    getAnimalStoreOptions b =
-      let houseOption = ("In your house, containing: " ++ show (_houseAnimal b), House)
-          pastureOptions = zipWith (\(ss, mAnimal, _) i -> ("In pasture: " ++ show ss ++ ", containing: " ++ show mAnimal, Pasture i)) (_pastures b) [0 ..]
-          stableOptions = zipWith (\(s, mAnimal) i -> ("In (unfenced) stable: " ++ show s ++ ", containing: " ++ show mAnimal, UnfencedStable i)) (_unfencedStables b) [0 ..] in
-      houseOption : pastureOptions ++ stableOptions
-
+    where
     -- n is capacity that can be stored in a location, (at, n') is unassigned animal we want to store in the location, (at', n'') is animals already in that location
     -- resulting tuple is (animal in the location, leftover animals that are unassigned)
     storeAnimals :: Int -> Animal -> Maybe Animal -> (Animal, Animals)

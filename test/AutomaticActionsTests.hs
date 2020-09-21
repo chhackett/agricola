@@ -13,7 +13,7 @@ import Actions.AutomaticActions
 
 autoActionsTests = testGroup "AutomaticActionsTests" [returnWorkersTests]
 
-noop :: GameStateT ActionPrimitives
+noop :: GameStateT EventTypes
 noop = return []
 
 pcm = M.fromList [(0, 1), (1, 2)]

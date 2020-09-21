@@ -4,16 +4,18 @@ import System.IO
 import Control.Lens
 import Control.Monad
 import Control.Monad.State
+import Data.Foldable
 import qualified Data.Map as M
 import System.Random
 
-import ActionTypes
+import ActionFunctions
 import Types.BasicTypes
 import Types.BasicGameTypes
 import Types.CardDeclarations
 import Actions.ResourceActions
 import Actions.BoardActions
 import Actions.AutomaticActions
+import Actions.CardActionTypeMap
 import Actions.HarvestActions
 import Utils.Selection
 import Utils.ListUtils
@@ -97,18 +99,25 @@ doPhases = do
   currentRound <- gets _round
   lift $ putStrLn $ "Starting round " ++ show currentRound
   modify $ setPhase StartRound
+  processEvent $ RoundChange currentRound
+  processEvent $ PhaseChange StartRound
   doStartRoundPhase
   modify $ setPhase Replenish
+  processEvent $ PhaseChange Replenish
   doReplenishPhase
   modify $ setPhase Work
+  processEvent $ PhaseChange Work
   doWorkPhase
   modify $ setPhase ReturnHome
+  processEvent $ PhaseChange ReturnHome
   doReturnHomePhase
   modify $ setPhase Harvest
+  processEvent $ PhaseChange Harvest
   when (endOfStage currentRound) doHarvestPhase
 
 doStartRoundPhase :: GameStateT ()
 doStartRoundPhase = do
+  lift $ putStrLn "The next round has begun"
   gs <- get
   let desc = _description . head $ gs ^. futureActionSpaces
   lift $ putStrLn $ "The next card is: " ++ desc ++ "\n"
@@ -126,7 +135,7 @@ doReplenishPhase = do
 
 doWorkPhase :: GameStateT ()
 doWorkPhase = do
-  lift $ putStrLn "Work phase:"
+  lift $ putStrLn "Work phase has begun"
   gs <- get
   let options = getAllowedActions gs
       n = availableWorkers gs
@@ -137,43 +146,43 @@ doWorkPhase = do
   modify (\gs -> gs & currentActionId .~ nextActionId)
   let as = _actionSpaceMap gs M.! nextActionId
   result <- _action as
-  modify $ addEventsToHistory result
+  processEvents result
   modify nextPlayer   -- go to the next player
   n' <- gets availableWorkers
   when (n' > 0) doWorkPhase
 
 doReturnHomePhase :: GameStateT ()
-doReturnHomePhase = modify returnWorkersHome
+doReturnHomePhase = do
+  lift $ putStrLn "Returning workers..."
+  modify returnWorkersHome
 
 doHarvestPhase :: GameStateT ()
 doHarvestPhase = do
   lift $ putStrLn "Harvest Time!"
   modify $ setPhase HarvestField
+  processEvent $ PhaseChange HarvestField
   doFieldPhase
   modify $ setPhase HarvestFeed
+  processEvent $ PhaseChange HarvestFeed
   doFeedPhase
   modify $ setPhase HarvestBreed
+  processEvent $ PhaseChange HarvestBreed
   doBreedPhase
 
 doFieldPhase :: GameStateT ()
-doFieldPhase = do
-  lift $ putStrLn "Harvesting fields"
-  result <- runHarvestFields
-  modify $ addEventsToHistory result
-  return ()
+doFieldPhase = doSimpleAction "Harvesting fields" runHarvestFields
 
 doFeedPhase :: GameStateT ()
-doFeedPhase = do
-  lift $ putStrLn "Feeding family"
-  result <- runFeedFamily
-  modify $ addEventsToHistory result
-  return ()
+doFeedPhase = doSimpleAction "Feeding family" runFeedFamily
 
 doBreedPhase :: GameStateT ()
-doBreedPhase = do
-  lift $ putStrLn "Breeding animals"
-  result <- runBreedAnimals
-  modify $ addEventsToHistory result
+doBreedPhase = doSimpleAction "Breeding animals" runBreedAnimals
+
+doSimpleAction :: String -> SimpleActionType -> GameStateT ()
+doSimpleAction desc a = do
+  lift $ putStrLn desc
+  result <- a
+  processEvents result
   return ()
 
 getAllowedActions :: GameState -> Options ActionSpaceId
@@ -202,6 +211,32 @@ showResources = M.foldl build ""
 nextPlayer :: GameState -> GameState
 nextPlayer gs = let p : ps = _players gs in gs & players .~ (ps ++ [p])
 
-addEventsToHistory :: ActionPrimitives -> GameState -> GameState
-addEventsToHistory ps gs =
-  let h = _eventHistory gs in gs & eventHistory .~ (ps ++ h)
+processEvent :: EventType -> GameStateT ()
+processEvent e = do
+  gs <- get
+  put $ gs & eventHistory .~ (e : _eventHistory gs)
+  handleEventTriggeredActions e
+  return ()
+
+handleEventTriggeredActions :: EventType -> GameStateT ()
+handleEventTriggeredActions e = do
+  gs <- get
+  let es = getEventActions $ map _cardName $ currentPlayer gs ^. activeCards
+      es' = filter (\(_, e', _) -> e' == e) es
+      options = map (\(d, _, a) -> (d, a)) es'
+      descs = map fst options
+  unless (null es')
+    (do
+      lift $ putStrLn "You may do the following actions:"
+      lift $ forM_ descs (\d -> liftIO $ putStrLn $ "\t" ++ d)
+      lift $ putStrLn "Do you want to perform any of these actions?"
+      yes <- lift $ getNextSelection yesNoOptions
+      when yes $ lift
+        (do
+          getNextSelection options
+          return ()))
+
+processEvents :: EventTypes -> GameStateT ()
+processEvents ets = do
+  gs <- get
+  put $ gs & eventHistory .~ (ets ++ _eventHistory gs)

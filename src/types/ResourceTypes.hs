@@ -17,7 +17,15 @@ data ResourceType =
   | Crop CropType
   | Material MaterialType
   | Animal AnimalType
-  deriving (Show, Read, Eq, Ord)
+  deriving (Read, Eq, Ord)
+
+instance Show ResourceType where
+  show rt =
+    case rt of
+      Food        -> "Food"
+      Crop ct     -> show ct
+      Material mt -> show mt
+      Animal at   -> show at
 
 type Resource = (ResourceType, Int)
 type Resources = [Resource]
@@ -27,3 +35,5 @@ type Crops = [Crop]
 
 type Animal = (AnimalType, Int)
 type Animals = [Animal]
+
+data AnimalCount = House | Pasture Int | UnfencedStable Int

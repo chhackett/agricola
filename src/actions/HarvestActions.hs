@@ -5,6 +5,7 @@ import Control.Monad.State
 import Control.Lens
 import Data.Maybe
 
+import AnimalFunctions
 import Types.BasicGameTypes
 import Types.ResourceTypes
 import Actions.ResourceActions
@@ -16,7 +17,7 @@ import Utils.Selection
 ------- Harvest Fields --------
 -------------------------------
 
-runHarvestFields :: GameStateT ActionPrimitives
+runHarvestFields :: GameStateT EventTypes
 runHarvestFields = do
   gs <- get
   let fs = gs ^. players . ix 0 . board . fields
@@ -46,7 +47,7 @@ harvestFields p =
 --------- Feed Family ---------
 -------------------------------
 
-runFeedFamily :: GameStateT ActionPrimitives
+runFeedFamily :: GameStateT EventTypes
 runFeedFamily = do
   gs <- get
   let cost = 2 * (currentPlayer gs ^. workers)
@@ -61,7 +62,7 @@ runFeedFamily = do
 -------- Breed Animals --------
 -------------------------------
 
-runBreedAnimals :: GameStateT ActionPrimitives
+runBreedAnimals :: GameStateT EventTypes
 runBreedAnimals = do
   gs <- get
   let b = currentPlayer gs ^. board

@@ -9,6 +9,9 @@ type Stage = Int
 numRounds = 14 :: Round
 numStages = 6 :: Stage
 
+data GameMode = FamilyGame | NormalRules
+  deriving (Show, Read, Eq, Ord)
+
 data Phase =
     StartRound
   | Replenish

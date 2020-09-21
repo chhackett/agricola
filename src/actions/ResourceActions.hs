@@ -7,7 +7,7 @@ import Control.Monad.State
 import Data.List
 import qualified Data.Map as M
 
-import ActionTypes
+import ActionFunctions
 import Types.ResourceTypes
 import Types.BasicTypes
 import Types.BasicGameTypes
@@ -21,19 +21,19 @@ import Utils.Selection
 ----- Starting Player Actions ----
 ----------------------------------
 
-runStartingPlayerAndStorehouse :: ActionSpaceId -> GameStateT ActionPrimitives
+runStartingPlayerAndStorehouse :: ActionSpaceId -> GameStateT EventTypes
 runStartingPlayerAndStorehouse id = do
   runStartingPlayer
   result <- takeResourcesAction id
   return (StartingPlayer : result)
 
-runStartingPlayerAndOrMinorImprovement :: ActionSpaceId -> GameStateT ActionPrimitives
+runStartingPlayerAndOrMinorImprovement :: ActionSpaceId -> GameStateT EventTypes
 runStartingPlayerAndOrMinorImprovement id = do
   runStartingPlayer
   result <- playMinorImprovement
   return (StartingPlayer : result)
 
-runStartingPlayer :: GameStateT ActionPrimitives
+runStartingPlayer :: GameStateT EventTypes
 runStartingPlayer = do
   gs <- get
   let pid = currentPlayer gs ^. playerId
@@ -51,7 +51,7 @@ changeStartingPlayer gs =
 ------- Choose 1 Resource -----
 -------------------------------
 
-runTakeBuildingResource :: GameStateT ActionPrimitives
+runTakeBuildingResource :: GameStateT EventTypes
 runTakeBuildingResource = do
   gs <- get
   let supply = _personalSupply $ currentPlayer gs
@@ -65,7 +65,7 @@ runTakeBuildingResource = do
 --- Take 2 Building Resources ---
 ---------------------------------
 
-runTake2DifferentBuildingResources :: GameStateT ActionPrimitives
+runTake2DifferentBuildingResources :: GameStateT EventTypes
 runTake2DifferentBuildingResources = do
   gs <- get
   let supply = _personalSupply $ currentPlayer gs
@@ -94,7 +94,7 @@ addBuildingMaterialToSupply mt supply
 --- Take Reed, Stone and Food ---
 ---------------------------------
 
-runTakeReedStoneAndFood :: GameStateT ActionPrimitives
+runTakeReedStoneAndFood :: GameStateT EventTypes
 runTakeReedStoneAndFood = do
   modify (\s -> s & players . ix 0 . personalSupply . reed %~ (+1)
                   & players . ix 0 . personalSupply . stone %~ (+1)
@@ -105,7 +105,7 @@ runTakeReedStoneAndFood = do
 -- Take Sheep or Board or Cattle -
 ----------------------------------
 
-runTakeSheepBoarOrCattle :: GameStateT ActionPrimitives
+runTakeSheepBoarOrCattle :: GameStateT EventTypes
 runTakeSheepBoarOrCattle = do
   gs <- get
   lift $ putStrLn "What would you like to do?"
@@ -125,7 +125,7 @@ runTakeSheepBoarOrCattle = do
 -- Take 2 Building Resources or FamilyGrowth -
 ----------------------------------
 
-runTake2DifferentBuildingResourcesOrFamilyGrowth :: GameStateT ActionPrimitives
+runTake2DifferentBuildingResourcesOrFamilyGrowth :: GameStateT EventTypes
 runTake2DifferentBuildingResourcesOrFamilyGrowth = do
   gs <- get
   if _round gs < 5
@@ -139,7 +139,7 @@ runTake2DifferentBuildingResourcesOrFamilyGrowth = do
 -- Build 1 Room Or Traveling Players -
 ----------------------------------
 
-runBuildRoomOrTravelingPlayers :: ActionSpaceId -> GameStateT ActionPrimitives
+runBuildRoomOrTravelingPlayers :: ActionSpaceId -> GameStateT EventTypes
 runBuildRoomOrTravelingPlayers id = do
   lift $ putStrLn "Would you like to build a room or Traveling Players?"
   yes <- lift $ getNextSelection [("Build a room", True), ("Traveling Players", False)]
@@ -149,7 +149,7 @@ runBuildRoomOrTravelingPlayers id = do
 -- Take Reed and 1 Stone and 1 Wood -
 ----------------------------------
 
-runTakeReedand1Stoneand1Wood :: GameStateT ActionPrimitives
+runTakeReedand1Stoneand1Wood :: GameStateT EventTypes
 runTakeReedand1Stoneand1Wood = do
   modify (\s -> s & players . ix 0 . personalSupply . reed %~ (+1)
                   & players . ix 0 . personalSupply . stone %~ (+1)
@@ -163,12 +163,12 @@ getResourcesDescription rs = "Take all resources of type [" ++ show rs ++ "]"
 --------- Day Laborer ---------
 -------------------------------
 
-runDayLaborer :: GameStateT ActionPrimitives
+runDayLaborer :: GameStateT EventTypes
 runDayLaborer = do
   modify (\s -> s & players . ix 0 . personalSupply . food %~ (+2))
   return [TakeResources [(Food, 2)]]
 
-runDayLaborerWithBuildingResource :: GameStateT ActionPrimitives
+runDayLaborerWithBuildingResource :: GameStateT EventTypes
 runDayLaborerWithBuildingResource = do
   modify (\s -> s & players . ix 0 . personalSupply . food %~ (+1))
   results <- runTakeBuildingResource
@@ -178,12 +178,12 @@ runDayLaborerWithBuildingResource = do
 --------- TakeResources -------
 -------------------------------
 
-runTakeGrain :: GameStateT ActionPrimitives
+runTakeGrain :: GameStateT EventTypes
 runTakeGrain = do
   modify (\s -> s & players . ix 0 . personalSupply . grain %~ (+1))
   return [TakeResources [(Crop Grain, 1)]]
 
-runTakeVege :: GameStateT ActionPrimitives
+runTakeVege :: GameStateT EventTypes
 runTakeVege = do
   modify (\s -> s & players . ix 0 . personalSupply . veges %~ (+1))
   return [TakeResources [(Crop Veges, 1)]]
@@ -192,7 +192,7 @@ runTakeVege = do
 --------- TakeResources -------
 -------------------------------
 
-takeResourcesAction :: ActionSpaceId -> GameStateT ActionPrimitives
+takeResourcesAction :: ActionSpaceId -> GameStateT EventTypes
 takeResourcesAction id = do
   gs <- get
   (gs', rs) <- lift $ giveResourcesToCurrentPlayer id gs
