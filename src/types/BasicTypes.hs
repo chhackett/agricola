@@ -54,5 +54,23 @@ instance Show NumberOfTimes where
 data BooleanOp = And | Or | Xor
   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
--- A baking bread action is described by how many times it can be used, and how much food is obtained when converting one grain.
--- newtype BakeBreadType = BakeBread (NumberOfTimes, Int)
+-- What are the possible 'actions' that can be taken in agricola? Effects?
+-- Need to enumerate a 'primitive set' of action and effect types so I can efficiently generate code for the 380 cards in this game...
+-- phase change
+
+-- data ActionSpaceType =
+--   TakeResources Resources |
+--   SowType |
+--   BakeBreadType |
+--   MajorOrMinorImprovementType |
+--   Fences |
+--   Take1BuildingResource |
+--   BuildRoomsAndOrStables |
+--   Plow1Field |
+--   OccupationType |
+--   DayLaborer |
+--   Renovation |
+--   Sow |
+--   FamilyGrowthType |
+--   MinorImprovementType |
+--   StartingPlayer

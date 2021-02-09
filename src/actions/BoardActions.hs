@@ -54,10 +54,11 @@ runBuildRoom = do
   gs <- get
   let b = currentPlayer gs ^. board
   b' <- lift $ getBuildRoomChoices b
-  put (gs & players . ix 0 . board .~ b')
+  put $ gs & players . ix 0 . board .~ b'
+           & players . ix 0 . personalSupply . wood -~ 5
   if ifHaveResources [(Material Wood, 5), (Material Clay, 2)] gs
-    then optionalDoGS "Do you want to build another room?" [ExtendHouse] runBuildRoom
-    else return [ExtendHouse]
+    then optionalDoGS "Do you want to build another room?" [ExtendHouse 1] runBuildRoom
+    else return [ExtendHouse 1]
 
 getBuildRoomChoices :: Board -> IO Board
 getBuildRoomChoices b = do
@@ -83,9 +84,10 @@ runBuildStables = do
   let b = currentPlayer gs ^. board
   b' <- lift $ getBuildStablesChoices b
   put $ gs & players . ix 0 . board .~ b'
+           & players . ix 0 . personalSupply . wood -~ 2
   if ifHaveResources [(Material Wood, 2)] gs
-    then optionalDoGS "Do you want to build another stable?" [BuildStables] runBuildStables
-    else return [BuildStables]
+    then optionalDoGS "Do you want to build another stable?" [BuildStables 1] runBuildStables
+    else return [BuildStables 1]
 
 getBuildStablesChoices :: Board -> IO Board
 getBuildStablesChoices b = do
@@ -170,7 +172,7 @@ runPlowFieldAction = do
   let b = currentPlayer gs ^. board
   s <- lift $ getPlowFieldChoice b
   put $ gs & players . ix 0 . board .~ addField b s
-  return [PlowField]
+  return [PlowField 1]
 
 getPlowFieldChoice :: Board -> IO Space
 getPlowFieldChoice b = do
@@ -232,11 +234,9 @@ runSowAction = do
   case input of
     Nothing -> return []
     Just (s, ct) -> do
-      let supply' = if ct == Grain
-                    then supply & grain %~ (`subtract` 1)
-                    else supply & veges %~ (`subtract` 1)
+      let supply' = supply & (if ct == Grain then grain else veges) %~ (`subtract` 1)
       put $ gs & players . ix 0 . board .~ sowField b s ct
-              & players . ix 0 . personalSupply .~ supply'
+               & players . ix 0 . personalSupply .~ supply'
       return [SowField ct]
 
 -- User needs to pick which field to sow.
@@ -296,7 +296,7 @@ runFencesAction = do
     b' <- lift $ placeNewAnimals animals $ b & pastures .~ ps'
     put $ gs & players . ix 0 . board .~ b'
              & players . ix 0 . personalSupply . wood .~ n - length es
-    return [BuildFences]
+    return [BuildFences $ length es]
 
 -- Given the board compute where the user selects to put the next fence piece
 getFenceChoices :: (Board, Int, Edges) -> IO Edges

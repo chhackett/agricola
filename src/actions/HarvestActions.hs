@@ -17,7 +17,7 @@ import Utils.Selection
 ------- Harvest Fields --------
 -------------------------------
 
-runHarvestFields :: GameStateT EventTypes
+runHarvestFields :: SimpleActionType
 runHarvestFields = do
   gs <- get
   let fs = gs ^. players . ix 0 . board . fields
@@ -47,7 +47,7 @@ harvestFields p =
 --------- Feed Family ---------
 -------------------------------
 
-runFeedFamily :: GameStateT EventTypes
+runFeedFamily :: SimpleActionType
 runFeedFamily = do
   gs <- get
   let cost = 2 * (currentPlayer gs ^. workers)
@@ -62,7 +62,7 @@ runFeedFamily = do
 -------- Breed Animals --------
 -------------------------------
 
-runBreedAnimals :: GameStateT EventTypes
+runBreedAnimals :: SimpleActionType
 runBreedAnimals = do
   gs <- get
   let b = currentPlayer gs ^. board

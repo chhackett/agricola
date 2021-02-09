@@ -5,7 +5,6 @@ import Control.Monad.State
 import Data.List
 import qualified Data.Map as M
 
-import Actions.CardActionTypeMap
 import ActionFunctions
 import AnimalFunctions
 import Types.CardNames
@@ -36,8 +35,8 @@ playOccupationConditions asId =
 runPlayOccupation :: GameStateT EventTypes
 runPlayOccupation = do
   gs <- get
-  let cards = gs ^. players . ix 0 . activeCards
-      inhand = filter isOccupation $ gs ^. players . ix 0 . hand
+  let p = currentPlayer gs
+      inhand = filter isOccupation $ p ^. hand
       options = map (\h -> (show h, h)) inhand
   card <- lift $ getNextSelection options
   put (gs & players . ix 0 . activeCards %~ (card:)
@@ -48,14 +47,16 @@ runPlayOccupation = do
 -- Play a Major Or Minor Improvement --
 ---------------------------------------
 
+data MajorOrMinorAction = MajorAction | MinorAction
+
 playMajorOrMinorImprovement :: GameStateT EventTypes
 playMajorOrMinorImprovement = do
   lift $ putStrLn "Would you like to play a Major or Minor improvement?"
-  let options = [("Major", 0), ("Minor", 1)]
+  let options = [("Major", MajorAction), ("Minor", MinorAction)]
   choice <- lift $ getNextSelection options
   case choice of
-    0 -> playMajorImprovement
-    1 -> playMinorImprovement
+    MajorAction -> playMajorImprovement
+    MinorAction -> playMinorImprovement
 
 ----------------------------------
 ---- Play a Minor Improvement ----
@@ -65,7 +66,7 @@ playMinorImprovement :: GameStateT EventTypes
 playMinorImprovement = do
   gs <- get
   let p = currentPlayer gs
-      minors = filter (typeFilter Minor) $ p ^. hand
+      minors = filter isMinor $ p ^. hand
       options = map (\h -> (show h, h)) $ filter (canPlay p) minors
   if null options
   then do
@@ -85,8 +86,8 @@ playMinorImprovement = do
 playMajorImprovement :: GameStateT EventTypes
 playMajorImprovement = do
   gs <- get
-  let oldMajors = gs ^. availableMajorImprovements
-      p = currentPlayer gs
+  let p = currentPlayer gs
+      oldMajors = gs ^. availableMajorImprovements
       options = map (\c -> (show $ _cardName c, c)) $ filter (canPlay p) oldMajors
   if null options
   then do

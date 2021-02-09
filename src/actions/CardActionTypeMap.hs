@@ -2,7 +2,9 @@ module Actions.CardActionTypeMap where
 
 import Control.Lens
 import Control.Monad.State
+import qualified Data.Map as M
 
+import Actions.CardActions
 import ActionFunctions
 import AnimalFunctions
 import ResourceHelperFuncs
@@ -15,7 +17,7 @@ import Utils.Selection
 
 getEventActions :: CardNames -> [(Description, EventType, SimpleActionType)]
 getEventActions cs =
-  foldl getEventActionData [] cardActionList
+  foldl getEventActionData [] $ filter (\(cn, _) -> cn `elem` cs) cardActionList
   where
     getEventActionData :: [(Description, EventType, SimpleActionType)] -> (CardName, ActionType) -> [(Description, EventType, SimpleActionType)]
     getEventActionData xs ca =
@@ -23,6 +25,11 @@ getEventActions cs =
         EventTriggeredAction desc e a -> (desc, e, a):xs
         _                             -> xs
 
+getEventAction :: CardName -> Maybe ActionType
+getEventAction c =
+  case cardActionMap M.! c of
+    EventTriggeredAction d e s -> Just (EventTriggeredAction d e s)
+    _                          -> Nothing
 
 fireplaceDesc = goodsToFoodDesc ++ "1 Vege for 2 Food, 1 Sheep for 2 Food, 1 Boar for 2 Food, 1 Cattle for 3 Food"
 hearthDesc = goodsToFoodDesc ++ "1 Vege for 3 Food, 1 Sheep for 2 Food, 1 Boar for 3 Food, 1 Cattle for 4 Food"
@@ -34,14 +41,21 @@ basketmakerDesc = materialConverterDesc "Reed" "3"
 materialConverterDesc m n = "In each Harvest, you can use the Pottery to convert at most 1 " ++ m ++ " to " ++ n ++ " food.\n\t" ++
   "At the end of the game, you receive 1/2/3 Bonus points for 3/5/7 " ++ m
 
+ovenDescBegin = "Whenever you use the \"Bake bread\" action, you can turn at most "
+ovenDescMiddle n m = n ++ " Grain into " ++ m ++ " Food. "
+ovenDescEnd = "When you take this card, you can immediately use the \"Bake bread\" Action."
+
+cardActionMap :: M.Map CardName ActionType
+cardActionMap = M.fromList cardActionList
+
 cardActionList :: [(CardName, ActionType)]
 cardActionList =
   [ (Fireplace1, AnytimeAction fireplaceDesc $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
   , (Fireplace2, AnytimeAction fireplaceDesc $ convertResourceToFood [(Crop Veges, 2), (Animal Sheep, 2), (Animal Boar, 2), (Animal Cattle, 3)])
   , (CookingHearth1, AnytimeAction hearthDesc $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
   , (CookingHearth2, AnytimeAction hearthDesc $ convertResourceToFood [(Crop Veges, 3), (Animal Sheep, 2), (Animal Boar, 3), (Animal Cattle, 4)])
-  , (StoneOven, noOpAction)
-  , (ClayOven, noOpAction)
+  , (StoneOven, WhenPlayedAction (ovenDescBegin ++ ovenDescMiddle "2" "4" ++ ovenDescEnd) runBakeBreadAction)
+  , (ClayOven, WhenPlayedAction (ovenDescBegin ++ ovenDescMiddle "1" "5" ++ ovenDescEnd) runBakeBreadAction)
   , (Pottery, EventTriggeredAction potteryDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Clay, 1) 2)) 
   , (Joinery, EventTriggeredAction joineryDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Wood, 1) 2)) 
   , (BasketmakersWorkshop, EventTriggeredAction basketmakerDesc (PhaseChange Harvest) (convertSingleResourceTypeToFood (Material Reed, 1) 3)) 

@@ -135,7 +135,6 @@ doReplenishPhase = do
 
 doWorkPhase :: GameStateT ()
 doWorkPhase = do
-  lift $ putStrLn "Work phase has begun"
   gs <- get
   let options = getAllowedActions gs
       n = availableWorkers gs
@@ -146,7 +145,7 @@ doWorkPhase = do
   modify (\gs -> gs & currentActionId .~ nextActionId)
   let as = _actionSpaceMap gs M.! nextActionId
   result <- _action as
-  processEvents result
+  processEvents $ PlaceWorker nextActionId : result
   modify nextPlayer   -- go to the next player
   n' <- gets availableWorkers
   when (n' > 0) doWorkPhase

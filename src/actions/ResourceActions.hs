@@ -23,22 +23,22 @@ import Utils.Selection
 
 runStartingPlayerAndStorehouse :: ActionSpaceId -> GameStateT EventTypes
 runStartingPlayerAndStorehouse id = do
-  runStartingPlayer
-  result <- takeResourcesAction id
-  return (StartingPlayer : result)
+  result1 <- runStartingPlayer
+  result2 <- takeResourcesAction id
+  return (result1 ++ result2)
 
 runStartingPlayerAndOrMinorImprovement :: ActionSpaceId -> GameStateT EventTypes
 runStartingPlayerAndOrMinorImprovement id = do
-  runStartingPlayer
-  result <- playMinorImprovement
-  return (StartingPlayer : result)
+  result1 <- runStartingPlayer
+  result2 <- playMinorImprovement
+  return (result1 ++ result2)
 
 runStartingPlayer :: GameStateT EventTypes
 runStartingPlayer = do
   gs <- get
   let pid = currentPlayer gs ^. playerId
   put (gs & nextStartingPlayer .~ pid)
-  return [StartingPlayer]
+  return [StartingPlayer pid]
 
 changeStartingPlayer :: GameState -> GameState
 changeStartingPlayer gs =

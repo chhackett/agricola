@@ -104,13 +104,14 @@ $(makeLenses ''Player)
 data EventType =
     PhaseChange Phase
   | RoundChange Round
-  | StartingPlayer
-  | ExtendHouse
+  | PlaceWorker ActionSpaceId
+  | StartingPlayer PlayerId
+  | ExtendHouse Int
   | RenovateHouse
   | FamilyGrowth
-  | BuildFences
-  | BuildStables
-  | PlowField
+  | BuildFences Int
+  | BuildStables Int
+  | PlowField Int
   | SowField CropType
   | BakeBread                                    -- just a particular form of converting resources - in this case, grain to food. But its a very common pattern.
   | ConvertResourceToFood ResourceType           -- more general form of converting resources to food
@@ -145,7 +146,8 @@ data Who =
 data ActionType =
   EventTriggeredAction Description EventType SimpleActionType |
   AnytimeAction Description SimpleActionType |
-  BeginPhaseAction Phase SimpleActionType
+  BeginPhaseAction Phase SimpleActionType |
+  WhenPlayedAction Description SimpleActionType
 
 -- After an action is evaluated, that last action primitive to be executed is supplied to determine which
 -- subsequent actions are allowed
@@ -195,8 +197,26 @@ type ActionAllowedFunc = GameState -> Bool
 
 type ActionAllowedMap = M.Map ActionSpaceId ActionAllowedFunc
 
+-- data ActionSpaceType =
+--   TakeResources Resources |
+--   SowType |
+--   BakeBreadType |
+--   MajorOrMinorImprovementType |
+--   Fences |
+--   Take1BuildingResource |
+--   BuildRoomsAndOrStables |
+--   Plow1Field |
+--   OccupationType |
+--   DayLaborer |
+--   Renovation |
+--   Sow |
+--   FamilyGrowthType |
+--   MinorImprovementType |
+--   StartingPlayer
+
 data ActionSpace = ActionSpace
   { _actionSpaceId :: ActionSpaceId
+  -- , _actionSpaceType :: ActionSpaceType
   , _description :: Description
   , _replenishment :: Maybe Resource
   , _action :: SimpleActionType
@@ -250,7 +270,7 @@ showActions asm =
 -- behavior of the different actions.
 
 -- data GameArea = GameArea
---   { _generalSupply :: GeneralSupply          -- where resource are stored until a player takes them
+--   { _generalSupply :: GeneralSupply                -- where resource are stored until a player takes them
 --   , _actionSpaceArea :: ActionSpaceArea            -- where action cards go, including the round cards and the green action cards
 --   , _playerAreas :: [PlayerArea]
 --   }
@@ -265,6 +285,7 @@ showActions asm =
 
 -- data ActionSpaceArea = ActionSpaceArea
 --   { _actionCardSlots :: CardNames
+--   , _fixedActionSpaces :: ???
 --   , _roundCardSlots :: CardNames
 --   }
 
@@ -309,24 +330,24 @@ showActions asm =
 --   , _cattleTokens :: Int
 --   }
 
-type PlayerBoardSpace = (Space, GameTokens)
-type PlayerBoardEdge = (Edge, Maybe GameToken)
+-- type PlayerBoardSpace = (Space, GameTokens)
+-- type PlayerBoardEdge = (Edge, Maybe GameToken)
 
-data GameToken =
-  Worker |
-  Fence |
-  Stable |
-  ActionCard |
-  RoundCard |
-  MajorImprovementCard CardName |
-  MinorImprovementCard CardName |
-  OccupationCard CardName |
-  Room HouseMaterial |
-  Field |
-  ResourceToken ResourceType
-  deriving (Show, Read, Eq, Ord)
+-- data GameToken =
+--   Worker |
+--   Fence |
+--   Stable |
+--   ActionCard |
+--   RoundCard |
+--   MajorImprovementCard CardName |
+--   MinorImprovementCard CardName |
+--   OccupationCard CardName |
+--   Room HouseMaterial |
+--   Field |
+--   ResourceToken ResourceType
+--   deriving (Show, Read, Eq, Ord)
 
-type GameTokens = [GameToken]
+-- type GameTokens = [GameToken]
 
 currentPlayer :: GameState -> Player
 currentPlayer = head . _players
