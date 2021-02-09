@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+    - path: "./src"
+      component: "exe:agricola"
+    - path: "./test"
+      component: "test:agricola"
