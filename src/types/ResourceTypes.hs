@@ -33,7 +33,20 @@ type Resources = [Resource]
 type Crop = (CropType, Int)
 type Crops = [Crop]
 
+data FieldType =
+    Fallow
+  | GrainField
+  | VegeField
+  deriving (Show, Read, Eq, Enum, Ord, Bounded)
+
 type Animal = (AnimalType, Int)
 type Animals = [Animal]
 
 data AnimalCount = House | Pasture Int | UnfencedStable Int
+
+houseToMaterial :: HouseMaterial -> MaterialType
+houseToMaterial hm =
+  case hm of
+    WoodHouse -> Wood
+    ClayHouse -> Clay
+    StoneHouse -> Stone

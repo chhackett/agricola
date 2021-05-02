@@ -7,6 +7,7 @@ import qualified Data.Map as M
 
 import ActionFunctions
 import AnimalFunctions
+import Types.ActionTypes
 import Types.CardNames
 import Types.CardDeclarations
 import Types.BasicTypes

@@ -5,6 +5,8 @@ import Control.Monad.State
 import qualified Data.Map as M
 
 import ResourceHelperFuncs
+import Types.CardNames
+import Types.CardDeclarations
 import Types.BasicTypes
 import Types.BasicGameTypes
 import Types.ResourceTypes
@@ -62,6 +64,9 @@ ifNoWorkers :: ActionSpaceId -> ActionAllowedFunc
 ifNoWorkers asId gs =
   let as = _actionSpaceMap gs M.! asId in
   M.null $ _workersMap as
+
+ifHasCardName :: CardName -> ActionAllowedFunc
+ifHasCardName name gs = any (\card -> _cardName card == name) $ currentPlayer gs ^. activeCards
 
 ifHaveResources :: Resources -> ActionAllowedFunc
 ifHaveResources rs gs =

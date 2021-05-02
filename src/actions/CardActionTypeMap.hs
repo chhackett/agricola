@@ -15,6 +15,7 @@ import Types.ResourceTypes
 import Utils.ListUtils
 import Utils.Selection
 
+-- Given a list of cards determine which events are allowed
 getEventActions :: CardNames -> [(Description, EventType, SimpleActionType)]
 getEventActions cs =
   foldl getEventActionData [] $ filter (\(cn, _) -> cn `elem` cs) cardActionList
@@ -198,7 +199,7 @@ convertSingleResourceTypeToFood :: Resource -> Int -> SimpleActionType
 convertSingleResourceTypeToFood (rt, n) ratio = do
   gs <- get
   let rs = getAllResources $ currentPlayer gs
-  case getFirstOfType rt rs of
+  case lookup rt rs of
     Nothing -> do lift $ putStrLn ("You have no " ++ show rt ++ " to convert")
                   return []
     Just amount -> do

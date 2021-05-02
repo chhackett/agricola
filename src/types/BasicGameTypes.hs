@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Control.Monad.State
 import Control.Lens as L
 
+import Types.ActionTypes
 import Types.BasicTypes
 import Types.ResourceTypes
 import Types.CardDeclarations
@@ -149,7 +150,7 @@ data ActionType =
   BeginPhaseAction Phase SimpleActionType |
   WhenPlayedAction Description SimpleActionType
 
--- After an action is evaluated, that last action primitive to be executed is supplied to determine which
+-- After an action is evaluated, the last action primitive to be executed is supplied to determine which
 -- subsequent actions are allowed
 -- type ActionEvent = EventType
 -- type ActionEvents = [ActionEvent]
@@ -216,7 +217,6 @@ type ActionAllowedMap = M.Map ActionSpaceId ActionAllowedFunc
 
 data ActionSpace = ActionSpace
   { _actionSpaceId :: ActionSpaceId
-  -- , _actionSpaceType :: ActionSpaceType
   , _description :: Description
   , _replenishment :: Maybe Resource
   , _action :: SimpleActionType
@@ -299,7 +299,7 @@ showActions asm =
 -- data PlayersUnusedTokensSupply = PlayersUnusedTokensSupply
 --   { _fences :: Int
 --   , _stables :: Int
---   , _workerTokens :: Int
+--   , _workerTokens :: (Int, Int)    -- newborns, adults
 --   }
 
 -- data PlayerCardArea = PlayerCardArea

@@ -8,6 +8,7 @@ import Control.Lens as L
 import Types.CardNames
 import Types.BasicTypes
 import Types.ResourceTypes
+import Types.ActionTypes
 
 -- Major and Minor improvements have features that are common to all cards:
 --   Some have pre requisites
@@ -21,29 +22,6 @@ import Types.ResourceTypes
 
 data DeckType = Easy | Interactive | Komplex
   deriving (Show, Read, Eq, Ord)
-
-data CardType = Major | Minor | Occupation | RoundCard | ActionCard | Begging
-  deriving (Show, Read, Eq, Ord)
-
-data PreReq =
-  NoPreReqs |
-  NumCardTypes Int CardType |
-  PreReqCardName CardName |
-  EitherPreReq PreReq PreReq |
-  AllPreReqs PreReqs
-  deriving (Show, Read, Eq, Ord)
-
-type PreReqs = [PreReq]
-
-data Cost =
-  Free |
-  Cost Resources |
-  Return CardName |
-  EitherCost Cost Cost |
-  AllCosts Costs
-  deriving (Show, Read, Eq, Ord)
-
-type Costs = [Cost]
 
 data CardInfo = CardInfo
   { _cardType :: CardType
@@ -81,36 +59,36 @@ cardInfos =
   , CardInfo Major "" Well NoPreReqs (Cost [(Material Wood, 1), (Material Stone, 3)]) 4 Nothing Nothing
 
   -- 'Easy' Minor Improvements
-  , CardInfo Minor "" AnimalPen (NumCardTypes 4 Occupation) (Cost [(Material Wood, 1)]) 1 (Just Easy) Nothing
+  , CardInfo Minor "" AnimalPen (PRNumCardTypes Occupation 4) (Cost [(Material Wood, 1)]) 1 (Just Easy) Nothing
   , CardInfo Minor "" MarketStall NoPreReqs (Cost [(Food, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" FeedPellets NoPreReqs Free 0 (Just Easy) Nothing
   , CardInfo Minor "" PrivateForest NoPreReqs (Cost [(Food, 2)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" ClayRoof (NumCardTypes 1 Occupation) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" ClayRoof (PRNumCardTypes Occupation 1) Free 1 (Just Easy) Nothing
   , CardInfo Minor "" BuildersTrowel NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Outhouse NoPreReqs (Cost [(Material Wood, 1), (Material Clay, 1)]) 2 (Just Easy) Nothing
   , CardInfo Minor "" Axe NoPreReqs (Cost [(Material Wood, 1), (Material Stone, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Basket NoPreReqs (Cost [(Material Reed, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Plane NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" FruitTree (NumCardTypes 3 Occupation) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" FruitTree (PRNumCardTypes Occupation 3) Free 1 (Just Easy) Nothing
   , CardInfo Minor "" Windmill NoPreReqs (Cost [(Material Wood, 3), (Material Stone, 1)]) 2 (Just Easy) Nothing
   , CardInfo Minor "" ButterChurn NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" ReedPond (NumCardTypes 3 Occupation) Free 1 (Just Easy) Nothing
-  , CardInfo Minor "" BeanField (NumCardTypes 2 Occupation) Free 1 (Just Easy) Nothing
-  , CardInfo Minor "" AnimalYard (NumCardTypes 1 Occupation) (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
+  , CardInfo Minor "" ReedPond (PRNumCardTypes Occupation 3) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" BeanField (PRNumCardTypes Occupation 2) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" AnimalYard (PRNumCardTypes Occupation 1) (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
   , CardInfo Minor "" MiniPasture NoPreReqs (Cost [(Food, 2)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" ClaySupports NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Clogs NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" HalfTimberedHouse NoPreReqs (Cost [(Material Wood, 1), (Material Clay, 1), (Material Reed, 1), (Material Stone, 2)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" StoneHouseExtension NoPreReqs (Cost [(Material Reed, 1), (Material Stone, 1)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" Canoe (NumCardTypes 2 Occupation) (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
+  , CardInfo Minor "" Canoe (PRNumCardTypes Occupation 2) (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
   , CardInfo Minor "" GypsysCrock NoPreReqs (Cost [(Material Clay, 2)]) 1 (Just Easy) Nothing
-  , CardInfo Minor "" LettucePatch (NumCardTypes 3 Occupation) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" LettucePatch (PRNumCardTypes Occupation 3) Free 1 (Just Easy) Nothing
   , CardInfo Minor "" MadonnaStatue NoPreReqs Free 2 (Just Easy) Nothing
   , CardInfo Minor "" CattleMarket NoPreReqs (Cost [(Animal Sheep, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" StoneTongs NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" SimpleFireplace NoPreReqs (Cost [(Material Wood, 1)]) 1 (Just Easy) Nothing
   , CardInfo Minor "" Dovecote NoPreReqs (Cost [(Material Stone, 2)]) 2 (Just Easy) Nothing
-  , CardInfo Minor "" RidingPlow (NumCardTypes 3 Occupation) (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
+  , CardInfo Minor "" RidingPlow (PRNumCardTypes Occupation 3) (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Spindle NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" WoodFiredOven NoPreReqs (Cost [(Material Wood, 3), (Material Stone, 1)]) 2 (Just Easy) Nothing
   , CardInfo Minor "" Raft NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
@@ -119,17 +97,17 @@ cardInfos =
   , CardInfo Minor "" DrinkingTrough NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Easy) Nothing
   , CardInfo Minor "" Millstone NoPreReqs (Cost [(Material Stone, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" HelpfulNeighbors NoPreReqs (Cost [(Material Wood, 1), (Material Clay, 1)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" SackCart (NumCardTypes 2 Occupation) (Cost [(Material Wood, 2)]) 0 (Just Easy) Nothing
+  , CardInfo Minor "" SackCart (PRNumCardTypes Occupation 2) (Cost [(Material Wood, 2)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" PotatoDibber NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" StableCard NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Ceramics NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" CornScoop NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" FishingRod NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Spices NoPreReqs Free 0 (Just Easy) Nothing
-  , CardInfo Minor "" WritingDesk (NumCardTypes 2 Occupation) (Cost [(Material Wood, 1)]) 1 (Just Easy) Nothing
-  , CardInfo Minor "" CarpPond (AllPreReqs [NumCardTypes 1 Occupation, NumCardTypes 2 Minor]) Free 1 (Just Easy) Nothing
-  , CardInfo Minor "" TurnwrestPlow (NumCardTypes 2 Occupation) (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
-  , CardInfo Minor "" Quarry (NumCardTypes 4 Occupation) Free 2 (Just Easy) Nothing
+  , CardInfo Minor "" WritingDesk (PRNumCardTypes Occupation 2) (Cost [(Material Wood, 1)]) 1 (Just Easy) Nothing
+  , CardInfo Minor "" CarpPond (PRAll [PRNumCardTypes Occupation 1, PRNumCardTypes Minor 2]) Free 1 (Just Easy) Nothing
+  , CardInfo Minor "" TurnwrestPlow (PRNumCardTypes Occupation 2) (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
+  , CardInfo Minor "" Quarry (PRNumCardTypes Occupation 4) Free 2 (Just Easy) Nothing
   , CardInfo Minor "" ShepherdsPipe NoPreReqs (Cost [(Animal Sheep, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" BakingTray NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Easy) Nothing
   , CardInfo Minor "" Manger NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Easy) Nothing
@@ -209,6 +187,149 @@ cardInfos =
   , CardInfo Occupation "" MasterShepherd NoPreReqs Free 0 (Just Easy) (Just 4)
   , CardInfo Occupation "" ClayFirer NoPreReqs Free 0 (Just Easy) (Just 4)
   , CardInfo Occupation "" EstateManager NoPreReqs Free 0 (Just Easy) (Just 3)
+
+  -- 'Interactive' Minor Improvements
+  -- , CardInfo Minor "" Ladder NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" StrawthatchedRoof (PRFields GrainField 3) Free 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Harrow NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WoodCard (PRNumCardTypes 3 Occupation) (Cost [(Material Wood, 3)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Slaughterhouse NoPreReqs (Cost [(Material Clay, 2), (Material Stone, 2)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" CookingCorner NoPreReqs Free 3 (Just Interactive) Nothing
+  -- , CardInfo Minor "" BakersKitchen NoPreReqs (Cost [(Material Stone, 2)]) 4 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Tavern NoPreReqs (Cost [(Material Wood, 2), (Material Stone, 2)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" AnimalFeed NoPreReqs Free 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WeeklyMarket NoPreReqs (Cost [(Crop Grain, 3)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WildlifeReserve NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WaterMill NoPreReqs (Cost [(Material Wood, 1), (Material Clay, 2), (Material Reed, 1), (Material Stone, 2)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" VillageWell NoPreReqs Free 5 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Copse NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Alms NoPreReqs Free 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ThreshingBoard NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" MoldboardPlow NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ShepherdsCrook NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Guest NoPreReqs (Cost [(Food, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" HolidayHouse NoPreReqs (Cost [(Material Wood, 3), (Material Clay, 3), (Material Reed, 2)]) 8 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ClayDeposit NoPreReqs Free 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" StrawberryPatch NoPreReqs Free 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" HandMill NoPreReqs (Cost [(Material Stone, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" GrainCart NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Punner NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Rake NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" SchnapsDistillery NoPreReqs (Cost [(Crop Grain, 1), (Material Stone, 2)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" GoosePond NoPreReqs Free 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" FishTrap NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ReedExchange NoPreReqs (Cost [(Material Wood, 2), (Material Clay, 2)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" MilkingShed NoPreReqs (Cost [(Material Clay, 2), (Material Stone, 3)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" PavedRoad NoPreReqs (Cost [(Material Stone, 5)]) 2 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Manure NoPreReqs Free 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Flagon NoPreReqs (Cost [(Material Clay, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Lasso NoPreReqs (Cost [(Material Reed, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ClayPath NoPreReqs (Cost [(Material Clay, 3)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" PlanterBox NoPreReqs Free 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" CornStorehouse NoPreReqs (Cost [(Material Wood, 2), (Material Clay, 2), (Material Reed, 2)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WoodenPath NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" ChickenCoop NoPreReqs (Cost [(Material Wood, 2), (Material Clay, 2), (Material Reed, 1)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WoodenHutExtension NoPreReqs (Cost [(Material Wood, 5), (Material Reed, 1) 0 (Just Interactive) Nothing
+  -- , CardInfo Minor "" WoodenCrane NoPreReqs (Cost [(Material Wood, 3)]) 1 (Just Interactive) Nothing
+  -- , CardInfo Minor "" Spinney NoPreReqs (Cost [(Material Wood, 1)]) 1 (Just Interactive) Nothing
+
+  -- 'Interactive' Occupations
+  -- , CardInfo Occupation "" Bricklayer NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" ClayPlasterer NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" FenceDeliveryman NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" WellBuilder NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" Outrider NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Manservant NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" VillageElder NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" PigCatcher NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" NetFisherman NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" Fieldsman NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" FenceBuilder NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" WoodCollector NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" ClayDigger NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Chamberlain NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" StoneCarver NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" Juggler NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Midwife NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" HideFarmer NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" Layabout NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" MilkingHand NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Butcher NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" Cowherd NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" Groom NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" CornProfiteer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" FieldWatchman NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" Businessman NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" MarketCrier NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" Fencer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" ReedBuyer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Cabinetmaker NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" WoodBuyer NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" Sycophant NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" SheepWhisperer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Rancher NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" AnimalDealer NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" ChurchWarden NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" StoneBuyer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" StreetMusician NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Gardener NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" HarvestHelper NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" Taster NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" PigBreeder NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" Puppeteer NoPreReqs Free 0 (Just Interactive) (Just 4)
+  -- , CardInfo Occupation "" FieldWorker NoPreReqs Free 0 (Just Interactive) (Just 3)
+  -- , CardInfo Occupation "" ClayHutBuilder NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" FarmSteward NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" WaterCarrier NoPreReqs Free 0 (Just Interactive) (Just 1)
+  -- , CardInfo Occupation "" SocialClimber NoPreReqs Free 0 (Just Interactive) (Just 4)
+
+  -- 'Komplex' Minor Improvements
+  -- , CardInfo Minor "" BrushwoodRoof NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Sawhorse NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Acreage NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Pelts NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" WoodenStrongbox NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" HouseGoat NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Sawmill NoPreReqs Free 3 (Just Komplex) Nothing
+  -- , CardInfo Minor "" ClayPit NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" HerbGarden NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" CornSheaf NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" CookingHearth NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Clapper NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" LandingNet NoPreReqs (Cost [(Material Reed, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Broom NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Yoke NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" LiquidManure NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" CrookedPlow NoPreReqs (Cost [(Material Wood, 3)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Bakehouse NoPreReqs (Cost [(Material Wood, 3)]) 5 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Granary NoPreReqs (Cost [(Material Wood, 3), (Material Clay, 3)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Greenhouse NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Lumber NoPreReqs (Cost [(Material Stone, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Beehive NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" SwingPlow NoPreReqs (Cost [(Material Wood, 3)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" ForestPasture NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Loom NoPreReqs (Cost [(Material Wood, 2)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Bookshelf NoPreReqs (Cost [(Material Wood, 1)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Flail NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" DuckPond NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" BoarBreeding NoPreReqs (Cost [(Food, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" StoneCart NoPreReqs (Cost [(Material Wood, 2)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" StoneExchange NoPreReqs (Cost [(Material Wood, 2), (Material Clay, 2)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Mansion NoPreReqs (Cost [(Material Wood, 3), (Material Clay, 3), (Material Reed, 2), (Material Stone, 3)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" BreadPaddle NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" SwanLake NoPreReqs Free 2 (Just Komplex) Nothing
+  -- , CardInfo Minor "" SpitRoast NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Brewery NoPreReqs (Cost [(Crop Grain, 2), (Material Stone, 2)]) 2 (Just Komplex) Nothing
+  -- , CardInfo Minor "" Horse NoPreReqs Free 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" TurnipField NoPreReqs Free 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" ReedHut NoPreReqs (Cost [(Material Wood, 1), (Material Reed, 4)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" SleepingCorner NoPreReqs (Cost [(Material Wood, 1)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" MilkingStool NoPreReqs (Cost [(Material Wood, 1)]) 0 (Just Komplex) Nothing
+  -- , CardInfo Minor "" OxTeam NoPreReqs (Cost [(Material Wood, 3)]) 1 (Just Komplex) Nothing
+  -- , CardInfo Minor "" ClayHutExtension NoPreReqs (Cost [(Material Reed, 1), (Material Clay, 4)]) 0 (Just Komplex) Nothing
+
+  -- 'Komplex' Occupations
+  -- , CardInfo Occupation ""  NoPreReqs Free 0 (Just Komplex) (Just 1)
   ]
 
 --------------------------------------
@@ -250,6 +371,16 @@ isOccupation = typeFilter Occupation
 
 typeFilter :: CardType -> CardInfo -> Bool
 typeFilter ct c = _cardType c == ct
+
+-- strawRoofPreReq :: GameState -> Bool
+-- strawRoofPreReq gs = 
+--   let p = currentPlayer gs in
+--   any $ hasGrains $ map snd $ p ^. board . fields
+--   where
+--   hasGrains mc =
+--     case mc of
+--       Nothing      -> False
+--       Just (ct, n) -> (ct /= Veges) && (n >= 3)
 
 -- allMajorsMap :: M.Map CardName CardInfo
 

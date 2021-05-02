@@ -82,13 +82,18 @@ checkAllowed mode n [] = False
 --   AfterRenovationAlsoFences
 --   deriving (Show, Read, Eq, Enum, Ord, Bounded)
 
-fixedActionSpaces :: [(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource, [GameMode])]
+fixedActionSpaces ::
+  [(Description,
+    EitherActionType,
+    ActionSpaceId -> ActionAllowedFunc,
+    Maybe Resource, -- replenishment
+    [GameMode])]
 fixedActionSpaces =
   [ ("Take Clay", Right takeResourcesAction, ifNoWorkers, Just (Material Clay, 1), [FamilyGame, NormalRules])
   , ("Take Wood", Right takeResourcesAction, ifNoWorkers, Just (Material Wood, 3), [FamilyGame, NormalRules])
   , ("Take Reed", Right takeResourcesAction, ifNoWorkers, Just (Material Reed, 1), [FamilyGame, NormalRules])
   , ("Fishing", Right takeResourcesAction, ifNoWorkers, Just (Food, 1), [FamilyGame, NormalRules])
-  , ("Build room(s) and/or Build Stable(s)", Left runBuildRoomAndOrStables, meetsOneOrTheOtherCondition (buildRoomConditions, buildStablesConditions), Nothing, [FamilyGame, NormalRules])
+  , ("Build room(s) and/or Build Stable(s)", Left (runBuildRoomAndOrStables [(Material Wood, 5), (Material Reed, 2)]), meetsOneOrTheOtherCondition (buildRoomConditions, buildStablesConditions), Nothing, [FamilyGame, NormalRules])
   , ("Starting Player and Storehouse", Right runStartingPlayerAndStorehouse, ifNoWorkers, Nothing, [FamilyGame])
   , ("Starting Player and/or 1 Minor Improvement", Right runStartingPlayerAndOrMinorImprovement, ifNoWorkers, Nothing, [NormalRules])
   , ("Take 1 Grain", Left runTakeGrain, ifNoWorkers, Nothing, [FamilyGame, NormalRules])
@@ -100,7 +105,12 @@ fixedActionSpaces =
   ]
 
 -- Specifies all action cards, including # of players where they are used, and the game mode
-actionSpaceCards :: [(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource, [(GameMode, NumPlayers)])]
+actionSpaceCards :: 
+  [(Description,
+    EitherActionType,
+    ActionSpaceId -> ActionAllowedFunc,
+    Maybe Resource,                         -- replenishment
+    [(GameMode, NumPlayers)])]
 actionSpaceCards =
   [ ("Take 1 Building Resource", Left runTakeBuildingResource, ifNoWorkers, Nothing, [(FamilyGame, 3), (NormalRules, 3)])
   , ("Take 2 Different Building Resources", Left runTake2DifferentBuildingResources, ifNoWorkers, Nothing, [(FamilyGame, 3), (FamilyGame, 4)])
@@ -126,7 +136,11 @@ actionSpaceCards =
 
 -- Round cards are used in all games, so no need to specify GameMode and NumPlayers. But they are availabe only in specific 'stages' so we specify which stage
 -- they become available.
-roundCards :: [[(Description, EitherActionType, ActionSpaceId -> ActionAllowedFunc, Maybe Resource)]]
+roundCards ::
+  [[(Description,
+    EitherActionType,
+    ActionSpaceId -> ActionAllowedFunc,
+    Maybe Resource)]]
 roundCards =
   -- Stage 1 cards
   [ [ ("Sow and/or Bake bread", Left runSowAndOrBakeBreadAction, sowAndOrBakeBreadConditions, Nothing)

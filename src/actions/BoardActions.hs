@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Actions.BoardActions where
 
@@ -13,10 +14,16 @@ import Data.List
 import ActionFunctions
 import AnimalFunctions
 import Actions.CardActions
+import Types.CardNames
 import Types.ResourceTypes
 import Types.BasicGameTypes
+import Types.CardDeclarations
 import Utils.Selection
 import Utils.ListUtils
+
+class ResourceAction a where
+  getCosts :: a -> [Resources] -> [Resources]
+  run :: a -> GameStateT EventTypes
 
 -----------------------------
 --------- BuildRoom ---------
@@ -24,11 +31,7 @@ import Utils.ListUtils
 
 buildRoomConditions :: ActionSpaceId -> ActionAllowedFunc
 buildRoomConditions asId =
-  allConditions [ifNoWorkers asId, ifHaveAdjacentEmptySpace, ifHaveResources [(Material Wood, 5), (Material Clay, 2)]]
-
-buildStablesConditions :: ActionSpaceId -> ActionAllowedFunc
-buildStablesConditions asId =
-  allConditions [ifNoWorkers asId, ifHaveAdjacentEmptySpace, ifHaveResources [(Material Wood, 2)]]
+  allConditions [anyConditions [ifNoWorkers asId, ifHasCardName HeadOfTheFamily], ifHaveAdjacentEmptySpace, ifHaveHouseResources]
 
 ifHaveAdjacentEmptySpace :: ActionAllowedFunc
 ifHaveAdjacentEmptySpace gs =
@@ -36,11 +39,90 @@ ifHaveAdjacentEmptySpace gs =
       hs = _houses b in
   not . null $ getAdjacentEmptySpaces b (fst hs)
 
-runBuildRoomAndOrStables :: GameStateT EventTypes
-runBuildRoomAndOrStables = do
+ifHaveHouseResources :: ActionAllowedFunc
+ifHaveHouseResources gs =
+  let p = currentPlayer gs
+      houseType = snd $ p ^. board . houses in
+  case houseType of
+    WoodHouse  -> True
+    ClayHouse  -> hasClayHouseResources gs
+    StoneHouse -> True
+  where
+    hasClayHouseResources :: ActionAllowedFunc
+    hasClayHouseResources gs = undefined
+
+-- replaceResourcesToExtendRoom :: [(CardName, [Resources] -> [Resources])]
+-- replaceResourcesToExtendRoom =
+--   [ (ClayRoof, clayRoof),
+--     (BrushwoodRoof, brushwoodRoof),
+--     (BrushwoodCollector, brushwoodCollector),
+--     (FrameBuilder, frameBuilder),
+--     (WoodCarver, woodCarver),
+--     (Ladder, ladder),
+--     (Bricklayer, bricklayer)
+--   ]
+--   where
+--     clayRoof (r:rs) = undefined
+
+replaceResource :: ResourceType -> Resource -> Resources -> Resources
+replaceResource rtnew (rtold, nmax) =
+  foldl go []
+  where
+    go :: Resources -> Resource -> Resources
+    go rs' (rt', n') =
+      if rtold == rt'
+      then if nmax >= n'
+           then (rtnew, n') : rs'
+           else (rtnew, nmax) : (rt', n' - nmax) : rs'
+      else (rt', n') : rs'
+
+calcExtendHouseCosts :: GameState -> [Resources]
+calcExtendHouseCosts gs =
+  let p = currentPlayer gs
+      houseType = snd $ p ^. board . houses
+      cards = map _cardName $ p ^. activeCards
+      baseCosts = case houseType of
+        WoodHouse  -> [(Wood, 5), (Reed, 2)] : foldr goWood [] cards
+        ClayHouse  -> [(Clay, 5), (Reed, 2)] : foldr goClay [] cards
+        StoneHouse -> [[(Stone, 5), (Reed, 2)]]
+      cost1 = removeReed cards baseCosts in
+      --cost2 = in
+  undefined
+  where
+    goWood _ _ = undefined
+    goClay card costs =
+      case card of
+        ClaySupports  -> [(Clay, 2), (Wood, 1), (Reed, 1)] : costs
+        ClayPlasterer -> [(Clay, 3), (Reed, 2)] : costs
+        _   -> costs
+
+-- calcResourceOptions :: Resources
+
+--modify :: ([[(ResourceType, Int)]] -> [[(ResourceType, Int)]])
+--maybeRemoveReed :: CardNames -> [[(ResourceType, Int)]] -> [[(ResourceType, Int)]]
+removeReed cards costs =
+  if StrawthatchedRoof `elem` cards
+    then map (filter (\(rt, n) -> rt /= Reed)) costs
+    else costs
+
+reduceCosts :: Eq a => (a, Int) -> [[(a, Int)]] -> [[(a, Int)]]
+reduceCosts (rt, n) = map $ map reduceCost
+  where
+    -- reduceCost :: (b, Int) -> (b, Int)
+    reduceCost (rt', n') =
+      if rt == rt' then (rt, max 0 (n' - n))
+                   else (rt', n')
+
+-------------------------------
+-- Build Room And/Or Stables --
+-------------------------------
+
+runBuildRoomAndOrStables :: Resources -> GameStateT EventTypes
+runBuildRoomAndOrStables rs = do
   gs <- get
+  let houseType = currentPlayer gs ^. board . houses . _2
   results <-
-    if ifHaveResources [(Material Wood, 5), (Material Clay, 2)] gs
+    if ifHaveResources rs gs
       then optionalDoGS "Do you want to build a room?" [] runBuildRoom
       else return []
   results' <- 
@@ -56,7 +138,7 @@ runBuildRoom = do
   b' <- lift $ getBuildRoomChoices b
   put $ gs & players . ix 0 . board .~ b'
            & players . ix 0 . personalSupply . wood -~ 5
-  if ifHaveResources [(Material Wood, 5), (Material Clay, 2)] gs
+  if ifHaveResources [(Material Wood, 5), (Material Reed, 2)] gs
     then optionalDoGS "Do you want to build another room?" [ExtendHouse 1] runBuildRoom
     else return [ExtendHouse 1]
 
@@ -77,6 +159,10 @@ addRoom b s = b & houses . _1 %~ (s:)
 -----------------------------
 ------- BuildStables --------
 -----------------------------
+
+buildStablesConditions :: ActionSpaceId -> ActionAllowedFunc
+buildStablesConditions asId =
+  allConditions [ifNoWorkers asId, ifHaveResources [(Material Wood, 2)]]
 
 runBuildStables :: GameStateT EventTypes
 runBuildStables = do
@@ -280,11 +366,11 @@ runFencesAction :: GameStateT EventTypes
 runFencesAction = do
   gs <- get
   let b = currentPlayer gs ^. board
-      ps = currentPlayer gs ^. board . pastures
+      ps = b ^. pastures
+      oldPastureEdges = concatMap calculateBoundaryEdges (toListOf (pastures . traverse . _1) b)
       n = currentPlayer gs ^. personalSupply . wood
   es <- lift $ getFenceChoices (b, n, [])
-  let es' = concatMap calculateBoundaryEdges (toListOf (pastures . traverse . _1) b)
-      ps' = map (\ss -> (ss, Nothing, computeStablesInPasture b ss)) $ calculatePastureSpaces b (es ++ es') -- use all edges on the board
+  let ps' = map (\ss -> (ss, Nothing, computeStablesInPasture b ss)) $ calculatePastureSpaces b (es ++ oldPastureEdges) -- use all edges on the board
   if (length es + Set.size (calculateAllPastureEdges ps)) /= Set.size (calculateAllPastureEdges ps')
   then do
     lift $ putStrLn "At least one fence is not part of the boundary of a valid pasture. Would you like to try again?"

@@ -56,7 +56,6 @@ data BooleanOp = And | Or | Xor
 
 -- What are the possible 'actions' that can be taken in agricola? Effects?
 -- Need to enumerate a 'primitive set' of action and effect types so I can efficiently generate code for the 380 cards in this game...
--- phase change
 
 -- data ActionSpaceType =
 --   TakeResources Resources |
